@@ -23,7 +23,10 @@ let lastWasResult = false;
 // 顯示更新
 // ====================================================
 function updateDisplay(expr, result = null, isError = false) {
-  expressionDisplay.textContent = expr || "0";
+  // 只在非聚焦狀態才更新 input 值（避免打字時被覆蓋）
+  if (document.activeElement !== expressionDisplay) {
+    expressionDisplay.value = expr || "";
+  }
 
   if (result !== null) {
     resultDisplay.textContent = result;
@@ -65,10 +68,9 @@ function handleInput(value) {
 function handleClear() {
   currentExpression = "";
   lastWasResult = false;
-  updateDisplay("", null);
+  expressionDisplay.value = "";
   resultDisplay.textContent = "0";
   resultDisplay.className = "";
-  expressionDisplay.textContent = "";
 }
 
 function handleBackspace() {
@@ -102,6 +104,12 @@ function formatExpression(expr) {
 // 呼叫後端 API 計算
 // ====================================================
 async function calculate() {
+  // 若使用者直接在 input 打字，以 input 的值為準
+  const inputVal = expressionDisplay.value.trim();
+  if (inputVal) {
+    // 把顯示用符號轉成 API 接受的符號
+    currentExpression = inputVal.replace(/×/g, "*").replace(/÷/g, "/");
+  }
   if (!currentExpression.trim()) return;
 
   setLoading(true);
@@ -117,12 +125,11 @@ async function calculate() {
     const data = await response.json();
 
     if (!response.ok) {
-      // 後端回傳錯誤（400 等）
       updateDisplay(formatExpression(currentExpression), data.detail || "錯誤", true);
       setStatus("error", "計算失敗");
     } else {
       const formatted = formatNumber(data.result);
-      expressionDisplay.textContent = formatExpression(currentExpression) + " =";
+      expressionDisplay.value = formatExpression(currentExpression) + " =";
       resultDisplay.textContent = formatted;
       resultDisplay.className = "is-result";
       currentExpression = String(data.result);
@@ -165,9 +172,33 @@ function setStatus(state, text) {
 }
 
 // ====================================================
-// 鍵盤支援
+// 直接在 input 欄位打字的處理
+// ====================================================
+expressionDisplay.addEventListener("input", () => {
+  // 同步 input 的內容到 currentExpression（符號轉換）
+  const raw = expressionDisplay.value;
+  currentExpression = raw.replace(/×/g, "*").replace(/÷/g, "/");
+  // 同時更新底部預覽（清掉舊結果）
+  resultDisplay.textContent = raw || "0";
+  resultDisplay.className = "";
+  lastWasResult = false;
+});
+
+expressionDisplay.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") {
+    e.preventDefault();
+    calculate();
+  } else if (e.key === "Escape") {
+    handleClear();
+  }
+});
+
+// ====================================================
+// 鍵盤支援（非 input 聚焦時）
 // ====================================================
 document.addEventListener("keydown", (e) => {
+  // 如果焦點在 input，讓 input 自己處理
+  if (document.activeElement === expressionDisplay) return;
   if (e.key >= "0" && e.key <= "9") handleInput(e.key);
   else if (e.key === "+") handleInput("+");
   else if (e.key === "-") handleInput("-");
