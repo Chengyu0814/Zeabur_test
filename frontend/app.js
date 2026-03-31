@@ -1,143 +1,125 @@
 // ====================================================
-// ⚙️  設定：部署到 Zeabur 後，把這裡改成你的後端 Domain
-// 本地測試時保持 http://localhost:8000
+// ⚙️  設定：部署到 Zeabur 後，改成你的後端 Domain
 // ====================================================
 const API_URL = window.CALCULATOR_API_URL || "http://localhost:8000";
 
 // ====================================================
 // DOM 元素
 // ====================================================
-const expressionDisplay = document.getElementById("expression-display");
-const resultDisplay = document.getElementById("result-display");
-const equalsBtn = document.getElementById("btn-equals");
+const dropZone = document.getElementById("drop-zone");
+const fileInput = document.getElementById("file-input");
+const btnProcess = document.getElementById("btn-process");
+const fileNameDisplay = document.getElementById("file-name");
+const fileNameSpan = fileNameDisplay.querySelector("span");
+
 const statusDot = document.getElementById("status-dot");
 const statusText = document.getElementById("status-text");
 
-// ====================================================
-// 狀態
-// ====================================================
-let currentExpression = "";
-let lastWasResult = false;
+let selectedFile = null;
 
 // ====================================================
-// 顯示更新
+// 上傳介面互動 (Drag & Drop)
 // ====================================================
-function updateDisplay(expr, result = null, isError = false) {
-  // 只在非聚焦狀態才更新 input 值（避免打字時被覆蓋）
-  if (document.activeElement !== expressionDisplay) {
-    expressionDisplay.value = expr || "";
+dropZone.addEventListener("click", () => fileInput.click());
+
+dropZone.addEventListener("dragover", (e) => {
+  e.preventDefault();
+  dropZone.classList.add("dragover");
+});
+
+dropZone.addEventListener("dragleave", (e) => {
+  e.preventDefault();
+  dropZone.classList.remove("dragover");
+});
+
+dropZone.addEventListener("drop", (e) => {
+  e.preventDefault();
+  dropZone.classList.remove("dragover");
+
+  if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+    handleFileSelect(e.dataTransfer.files[0]);
   }
+});
 
-  if (result !== null) {
-    resultDisplay.textContent = result;
-    resultDisplay.className = isError ? "error" : "is-result";
-  } else {
-    resultDisplay.textContent = expr || "0";
-    resultDisplay.className = "";
+fileInput.addEventListener("change", function () {
+  if (this.files && this.files.length > 0) {
+    handleFileSelect(this.files[0]);
   }
-}
+});
 
-// ====================================================
-// 按鈕點擊邏輯
-// ====================================================
-function handleInput(value) {
-  // 若上一次是計算結果，且繼續輸入數字，則清空重新開始
-  if (lastWasResult && /[\d.]/.test(value)) {
-    currentExpression = "";
-    lastWasResult = false;
-  } else if (lastWasResult && /[+\-×÷%^]/.test(value)) {
-    // 沿用上次結果繼續計算
-    lastWasResult = false;
-  }
-
-  // 顯示用符號 → API 用符號的轉換
-  const displayMap = { "×": "*", "÷": "/" };
-  const apiValue = displayMap[value] || value;
-
-  // 防止連續輸入兩個運算符
-  if (/[+\-*/%^]/.test(apiValue)) {
-    if (/[+\-*/%^]$/.test(currentExpression)) {
-      currentExpression = currentExpression.slice(0, -1);
-    }
-  }
-
-  currentExpression += apiValue;
-  updateDisplay(formatExpression(currentExpression));
-}
-
-function handleClear() {
-  currentExpression = "";
-  lastWasResult = false;
-  expressionDisplay.value = "";
-  resultDisplay.textContent = "0";
-  resultDisplay.className = "";
-}
-
-function handleBackspace() {
-  if (lastWasResult) {
-    handleClear();
+function handleFileSelect(file) {
+  // 檢查附檔名
+  if (!file.name.match(/\.(xlsx|xls)$/i)) {
+    alert("請上傳 Excel 檔案 (.xlsx 或 .xls)");
     return;
   }
-  currentExpression = currentExpression.slice(0, -1);
-  updateDisplay(formatExpression(currentExpression));
-}
-
-function handleDecimal() {
-  // 找到最後一個數字段，確保不重複加小數點
-  const parts = currentExpression.split(/[+\-*/%()\^]/);
-  const lastPart = parts[parts.length - 1];
-  if (!lastPart.includes(".")) {
-    if (lastPart === "" || currentExpression === "") {
-      currentExpression += "0";
-    }
-    currentExpression += ".";
-    updateDisplay(formatExpression(currentExpression));
-  }
-}
-
-// 格式化顯示（把 * 和 / 換回美觀符號）
-function formatExpression(expr) {
-  return expr.replace(/\*/g, "×").replace(/\//g, "÷");
+  selectedFile = file;
+  fileNameSpan.textContent = file.name;
+  fileNameDisplay.style.display = "block";
+  btnProcess.disabled = false;
+  setStatus("online", "檔案準備就緒");
 }
 
 // ====================================================
-// 呼叫後端 API 計算
+// API 呼叫：上傳與下載處理
 // ====================================================
-async function calculate() {
-  // 若使用者直接在 input 打字，以 input 的值為準
-  const inputVal = expressionDisplay.value.trim();
-  if (inputVal) {
-    // 把顯示用符號轉成 API 接受的符號
-    currentExpression = inputVal.replace(/×/g, "*").replace(/÷/g, "/");
-  }
-  if (!currentExpression.trim()) return;
+async function processFile() {
+  if (!selectedFile) return;
 
   setLoading(true);
-  setStatus("loading", "計算中…");
+  setStatus("loading", "處理中，請稍候…");
+
+  const formData = new FormData();
+  formData.append("file", selectedFile);
 
   try {
-    const response = await fetch(`${API_URL}/calculate`, {
+    const response = await fetch(`${API_URL}/process-excel`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ expression: currentExpression }),
+      body: formData,
     });
 
-    const data = await response.json();
-
     if (!response.ok) {
-      updateDisplay(formatExpression(currentExpression), data.detail || "錯誤", true);
-      setStatus("error", "計算失敗");
-    } else {
-      const formatted = formatNumber(data.result);
-      expressionDisplay.value = formatExpression(currentExpression) + " =";
-      resultDisplay.textContent = formatted;
-      resultDisplay.className = "is-result";
-      currentExpression = String(data.result);
-      lastWasResult = true;
-      setStatus("online", "API 連線正常");
+      // 嘗試解析錯誤訊息
+      let errorDetail = "檔案處理失敗";
+      try {
+        const errJson = await response.json();
+        errorDetail = errJson.detail || errorDetail;
+      } catch (e) {
+        console.error(e);
+      }
+      alert(`錯誤：${errorDetail}`);
+      setStatus("error", "處理失敗");
+      return;
     }
+
+    // 取得檔名（如果有 header 的話）或是預設一個檔名
+    const contentDisposition = response.headers.get("Content-Disposition");
+    let filename = `processed_${selectedFile.name}`;
+    if (contentDisposition && contentDisposition.includes("filename=")) {
+      // 提取 filename="..." 裡面的內容
+      const matches = contentDisposition.match(/filename="([^"]+)"/);
+      if (matches && matches[1]) {
+        filename = matches[1];
+      }
+    }
+
+    // 處理二進位檔案下載
+    const blob = await response.blob();
+    const downloadUrl = window.URL.createObjectURL(blob);
+    
+    // 建立臨時 <a> 標籤觸發下載
+    const a = document.createElement("a");
+    a.href = downloadUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(downloadUrl);
+
+    setStatus("online", "處理成功並開始下載 🎉");
+
   } catch (err) {
-    updateDisplay(formatExpression(currentExpression), "無法連接到後端 API", true);
+    alert("無法連接到伺服器或發生網路錯誤");
     setStatus("error", "連線失敗");
     console.error("API 錯誤：", err);
   } finally {
@@ -148,21 +130,11 @@ async function calculate() {
 // ====================================================
 // 輔助函式
 // ====================================================
-function formatNumber(num) {
-  // 顯示最多 10 位有效數字，避免浮點誤差
-  const n = parseFloat(num);
-  if (isNaN(n)) return String(num);
-  if (Number.isInteger(n)) return n.toLocaleString();
-  return parseFloat(n.toPrecision(12)).toLocaleString(undefined, {
-    maximumFractionDigits: 10,
-  });
-}
-
 function setLoading(isLoading) {
   if (isLoading) {
-    equalsBtn.classList.add("loading");
+    btnProcess.classList.add("loading");
   } else {
-    equalsBtn.classList.remove("loading");
+    btnProcess.classList.remove("loading");
   }
 }
 
@@ -171,77 +143,15 @@ function setStatus(state, text) {
   statusText.textContent = text;
 }
 
-// ====================================================
-// 直接在 input 欄位打字的處理
-// ====================================================
-expressionDisplay.addEventListener("input", () => {
-  // 同步 input 的內容到 currentExpression（符號轉換）
-  const raw = expressionDisplay.value;
-  currentExpression = raw.replace(/×/g, "*").replace(/÷/g, "/");
-  // 同時更新底部預覽（清掉舊結果）
-  resultDisplay.textContent = raw || "0";
-  resultDisplay.className = "";
-  lastWasResult = false;
-});
-
-expressionDisplay.addEventListener("keydown", (e) => {
-  if (e.key === "Enter") {
-    e.preventDefault();
-    calculate();
-  } else if (e.key === "Escape") {
-    handleClear();
-  }
-});
-
-// ====================================================
-// 鍵盤支援（非 input 聚焦時）
-// ====================================================
-document.addEventListener("keydown", (e) => {
-  // 如果焦點在 input，讓 input 自己處理
-  if (document.activeElement === expressionDisplay) return;
-  if (e.key >= "0" && e.key <= "9") handleInput(e.key);
-  else if (e.key === "+") handleInput("+");
-  else if (e.key === "-") handleInput("-");
-  else if (e.key === "*") handleInput("×");
-  else if (e.key === "/") { e.preventDefault(); handleInput("÷"); }
-  else if (e.key === "%") handleInput("%");
-  else if (e.key === "^") handleInput("^");
-  else if (e.key === ".") handleDecimal();
-  else if (e.key === "Enter" || e.key === "=") calculate();
-  else if (e.key === "Backspace") handleBackspace();
-  else if (e.key === "Escape") handleClear();
-  else if (e.key === "(") handleInput("(");
-  else if (e.key === ")") handleInput(")");
-});
-
-// ====================================================
-// Ripple 特效
-// ====================================================
-document.querySelectorAll(".btn").forEach((btn) => {
-  btn.addEventListener("click", function (e) {
-    const ripple = document.createElement("span");
-    ripple.className = "ripple";
-    const rect = this.getBoundingClientRect();
-    const size = Math.max(rect.width, rect.height);
-    ripple.style.width = ripple.style.height = size + "px";
-    ripple.style.left = e.clientX - rect.left - size / 2 + "px";
-    ripple.style.top = e.clientY - rect.top - size / 2 + "px";
-    this.appendChild(ripple);
-    setTimeout(() => ripple.remove(), 500);
-  });
-});
-
-// ====================================================
-// 初始化：健康檢查
-// ====================================================
+// 初始化：檢查 API 健康狀態
 async function checkHealth() {
   setStatus("loading", "連線中…");
   try {
     const res = await fetch(`${API_URL}/`, { signal: AbortSignal.timeout(5000) });
     if (res.ok) {
-      setStatus("online", "API 連線正常");
+      setStatus("online", "API 已連線，請上傳檔案");
     } else {
-      setStatus("error", "API 回應異常");
+      setStatus("error", "API 伺服器異常");
     }
   } catch {
     setStatus("error", "無法連接後端");

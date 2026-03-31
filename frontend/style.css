@@ -1,8 +1,8 @@
 /* ===================================
-   Calculator App - Global Styles
+   Excel App - Global Styles
    =================================== */
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
 *, *::before, *::after {
   margin: 0;
@@ -15,27 +15,14 @@
   --bg-secondary: #12121a;
   --glass-bg: rgba(255, 255, 255, 0.04);
   --glass-border: rgba(255, 255, 255, 0.08);
-  --glass-hover: rgba(255, 255, 255, 0.08);
 
   --accent-primary: #7c3aed;
   --accent-secondary: #a855f7;
-  --accent-glow: rgba(124, 58, 237, 0.4);
-
-  --btn-number-bg: rgba(255, 255, 255, 0.06);
-  --btn-number-hover: rgba(255, 255, 255, 0.12);
-  --btn-number-active: rgba(255, 255, 255, 0.18);
-
-  --btn-op-bg: rgba(124, 58, 237, 0.15);
-  --btn-op-hover: rgba(124, 58, 237, 0.28);
-  --btn-op-active: rgba(124, 58, 237, 0.4);
 
   --btn-equals-bg: linear-gradient(135deg, #7c3aed, #a855f7);
-  --btn-clear-bg: rgba(239, 68, 68, 0.15);
-  --btn-clear-hover: rgba(239, 68, 68, 0.3);
 
   --text-primary: #f8fafc;
   --text-secondary: rgba(248, 250, 252, 0.5);
-  --text-accent: #c084fc;
 
   --shadow-glow: 0 0 40px rgba(124, 58, 237, 0.2);
   --shadow-card: 0 25px 60px rgba(0, 0, 0, 0.5);
@@ -114,96 +101,94 @@ body::after {
 .page-title p {
   font-size: 0.8rem;
   color: var(--text-secondary);
-  margin-top: 0.3rem;
+  margin-top: 0.5rem;
 }
 
 /* ===================================
-   Calculator Card
+   Card & Upload Zone
    =================================== */
 
-.calculator-card {
+.uploader-card {
   position: relative;
   z-index: 1;
-  width: 360px;
+  width: 380px;
   background: rgba(18, 18, 26, 0.8);
   border: 1px solid var(--glass-border);
   border-radius: 28px;
-  padding: 24px;
+  padding: 30px 24px 24px;
   box-shadow: var(--shadow-card), var(--shadow-glow);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
 }
 
-/* ===================================
-   Display Area
-   =================================== */
-
-.display {
+.upload-zone {
   background: rgba(0, 0, 0, 0.3);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  border: 2px dashed rgba(124, 58, 237, 0.4);
   border-radius: 18px;
-  padding: 20px 20px 16px;
+  padding: 40px 20px;
   margin-bottom: 20px;
-  min-height: 110px;
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-end;
-  align-items: flex-end;
-  gap: 6px;
-  overflow: hidden;
-}
-
-#expression-display {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.95rem;
-  color: var(--text-secondary);
-  width: 100%;
-  background: transparent;
-  border: none;
-  outline: none;
-  text-align: right;
-  caret-color: var(--accent-secondary);
-  transition: color 0.2s ease;
-}
-
-#expression-display::placeholder {
-  color: rgba(255, 255, 255, 0.2);
-  font-size: 0.8rem;
-}
-
-#result-display {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 2.4rem;
-  font-weight: 600;
-  color: var(--text-primary);
-  word-break: break-all;
-  text-align: right;
+  text-align: center;
+  cursor: pointer;
   transition: all 0.3s ease;
-  line-height: 1.1;
+  position: relative;
 }
 
-#result-display.is-result {
-  background: linear-gradient(135deg, #c084fc, #7c3aed);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+.upload-zone:hover {
+  background: rgba(124, 58, 237, 0.05);
+  border-color: rgba(124, 58, 237, 0.8);
 }
 
-#result-display.error {
+.upload-zone.dragover {
+  background: rgba(124, 58, 237, 0.15);
+  border-color: #a855f7;
+  transform: scale(1.02);
+}
+
+.upload-icon {
+  font-size: 3rem;
+  margin-bottom: 12px;
+  opacity: 0.8;
+  filter: drop-shadow(0 4px 10px rgba(124, 58, 237, 0.4));
+}
+
+.upload-title {
+  color: var(--text-primary);
+  font-weight: 500;
   font-size: 1rem;
-  color: #f87171;
-  -webkit-text-fill-color: #f87171;
-  background: none;
+  margin-bottom: 6px;
+}
+
+.upload-subtitle {
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+}
+
+.selected-file {
+  margin-top: 15px;
+  padding: 8px 12px;
+  background: rgba(34, 197, 94, 0.15);
+  border-radius: 8px;
+  border: 1px solid rgba(34, 197, 94, 0.3);
+  color: #86efac;
+  font-size: 0.8rem;
+  word-break: break-all;
+}
+
+.selected-file span {
+  font-weight: 600;
+  color: #fff;
 }
 
 /* API 狀態指示燈 */
 .api-status {
+  position: absolute;
+  top: 15px;
+  right: 20px;
   display: flex;
   align-items: center;
   gap: 6px;
   font-size: 0.7rem;
   color: var(--text-secondary);
-  margin-bottom: 14px;
 }
 
 .status-dot {
@@ -235,135 +220,47 @@ body::after {
 }
 
 /* ===================================
-   Button Grid
+   Buttons
    =================================== */
-
-.btn-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 10px;
-}
 
 .btn {
   font-family: 'Inter', sans-serif;
   border: none;
   border-radius: 14px;
   cursor: pointer;
-  font-size: 1.05rem;
-  font-weight: 500;
-  padding: 0;
-  height: 60px;
+  font-size: 1rem;
+  font-weight: 600;
+  height: 55px;
+  width: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background 0.15s ease, transform 0.1s ease, box-shadow 0.15s ease;
-  user-select: none;
-  position: relative;
-  overflow: hidden;
-  color: var(--text-primary);
-  letter-spacing: -0.01em;
+  transition: all 0.2s ease;
+  color: white;
+  margin-top: 10px;
 }
 
-.btn::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  background: rgba(255, 255, 255, 0);
-  transition: background 0.15s ease;
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none !important;
+  box-shadow: none !important;
 }
 
-/* Number btns */
-.btn-number {
-  background: var(--btn-number-bg);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-}
-
-.btn-number:hover {
-  background: var(--btn-number-hover);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-}
-
-.btn-number:active {
-  background: var(--btn-number-active);
-  transform: translateY(0);
-  box-shadow: none;
-}
-
-/* Operator btns */
-.btn-operator {
-  background: var(--btn-op-bg);
-  border: 1px solid rgba(124, 58, 237, 0.2);
-  color: var(--text-accent);
-}
-
-.btn-operator:hover {
-  background: var(--btn-op-hover);
-  border-color: rgba(124, 58, 237, 0.4);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 16px rgba(124, 58, 237, 0.25);
-}
-
-.btn-operator:active {
-  background: var(--btn-op-active);
-  transform: translateY(0);
-}
-
-/* Clear btn */
-.btn-clear {
-  background: var(--btn-clear-bg);
-  border: 1px solid rgba(239, 68, 68, 0.2);
-  color: #fca5a5;
-}
-
-.btn-clear:hover {
-  background: var(--btn-clear-hover);
-  border-color: rgba(239, 68, 68, 0.4);
-  transform: translateY(-1px);
-}
-
-.btn-clear:active {
-  transform: translateY(0);
-}
-
-/* Equals btn */
 .btn-equals {
   background: linear-gradient(135deg, #7c3aed, #a855f7);
-  border: none;
-  color: white;
-  font-weight: 600;
-  font-size: 1.3rem;
   box-shadow: 0 4px 20px rgba(124, 58, 237, 0.4);
 }
 
-.btn-equals:hover {
+.btn-equals:not(:disabled):hover {
   background: linear-gradient(135deg, #6d28d9, #9333ea);
   transform: translateY(-2px);
   box-shadow: 0 8px 28px rgba(124, 58, 237, 0.5);
 }
 
-.btn-equals:active {
+.btn-equals:not(:disabled):active {
   transform: translateY(0);
   box-shadow: 0 2px 12px rgba(124, 58, 237, 0.3);
-}
-
-/* Special widths */
-.btn-wide {
-  grid-column: span 2;
-}
-
-/* Backspace */
-.btn-backspace {
-  background: rgba(251, 191, 36, 0.1);
-  border: 1px solid rgba(251, 191, 36, 0.15);
-  color: #fcd34d;
-  font-size: 1.1rem;
-}
-
-.btn-backspace:hover {
-  background: rgba(251, 191, 36, 0.2);
-  transform: translateY(-1px);
 }
 
 /* ===================================
@@ -372,12 +269,12 @@ body::after {
 
 .spinner {
   display: none;
-  width: 18px;
-  height: 18px;
-  border: 2px solid rgba(255, 255, 255, 0.2);
-  border-top-color: #a855f7;
+  width: 20px;
+  height: 20px;
+  border: 3px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
   border-radius: 50%;
-  animation: spin 0.7s linear infinite;
+  animation: spin 0.8s linear infinite;
 }
 
 @keyframes spin {
@@ -386,10 +283,7 @@ body::after {
 
 .btn-equals.loading .spinner { display: block; }
 .btn-equals.loading .btn-label { display: none; }
-.btn-equals.loading {
-  pointer-events: none;
-  opacity: 0.8;
-}
+.btn-equals.loading { pointer-events: none; }
 
 /* ===================================
    Footer
@@ -398,28 +292,7 @@ body::after {
 .footer {
   position: fixed;
   bottom: 1.5rem;
-  font-size: 0.7rem;
-  color: rgba(255, 255, 255, 0.2);
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.3);
   z-index: 1;
-  letter-spacing: 0.03em;
-}
-
-/* ===================================
-   Ripple Animation
-   =================================== */
-
-.ripple {
-  position: absolute;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.2);
-  transform: scale(0);
-  animation: ripple-anim 0.4s linear;
-  pointer-events: none;
-}
-
-@keyframes ripple-anim {
-  to {
-    transform: scale(4);
-    opacity: 0;
-  }
 }

@@ -1,10 +1,11 @@
-import ast
-import operator
-from fastapi import FastAPI, HTTPException
+import io
+import re
+import pandas as pd
+from fastapi import FastAPI, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from fastapi.responses import StreamingResponse
 
-app = FastAPI(title="Calculator API", version="1.0.0")
+app = FastAPI(title="Excel Processor API", version="1.0.0")
 
 # 允許前端跨域請求
 app.add_middleware(
@@ -15,91 +16,94 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# 支援的運算符（安全白名單）
-ALLOWED_OPERATORS = {
-    ast.Add: operator.add,
-    ast.Sub: operator.sub,
-    ast.Mult: operator.mul,
-    ast.Div: operator.truediv,
-    ast.Pow: operator.pow,
-    ast.USub: operator.neg,
-    ast.UAdd: operator.pos,
-    ast.Mod: operator.mod,
-}
-
-
-def safe_eval(node):
-    """安全地遞迴計算 AST 節點，只允許數學運算"""
-    if isinstance(node, ast.Expression):
-        return safe_eval(node.body)
-    elif isinstance(node, ast.Constant):
-        if isinstance(node.value, (int, float)):
-            return node.value
-        raise ValueError(f"不支援的常數類型: {type(node.value)}")
-    elif isinstance(node, ast.BinOp):
-        op_type = type(node.op)
-        if op_type not in ALLOWED_OPERATORS:
-            raise ValueError(f"不支援的運算符: {op_type.__name__}")
-        left = safe_eval(node.left)
-        right = safe_eval(node.right)
-        if op_type == ast.Div and right == 0:
-            raise ValueError("除數不能為零")
-        return ALLOWED_OPERATORS[op_type](left, right)
-    elif isinstance(node, ast.UnaryOp):
-        op_type = type(node.op)
-        if op_type not in ALLOWED_OPERATORS:
-            raise ValueError(f"不支援的一元運算符: {op_type.__name__}")
-        operand = safe_eval(node.operand)
-        return ALLOWED_OPERATORS[op_type](operand)
-    else:
-        raise ValueError(f"不支援的語法節點: {type(node).__name__}")
-
-
-class CalculateRequest(BaseModel):
-    expression: str
-
-
-class CalculateResponse(BaseModel):
-    result: float
-    expression: str
-
 
 @app.get("/")
 def health_check():
-    return {"status": "ok", "message": "Calculator API is running 🚀"}
+    return {"status": "ok", "message": "Excel Processor API is running 🚀"}
 
 
-@app.post("/calculate", response_model=CalculateResponse)
-def calculate(request: CalculateRequest):
+def get_month_name(filename: str) -> str:
+    """提取檔案名稱中的月份（如 202603... -> 三月）"""
+    match = re.search(r'^2026(\d{2})', filename)
+    if match:
+        month_num = match.group(1)
+        # 簡單映射 01~12 到 一月~十二月，確保通用性
+        month_map = {
+            "01": "一月", "02": "二月", "03": "三月", "04": "四月", 
+            "05": "五月", "06": "六月", "07": "七月", "08": "八月", 
+            "09": "九月", "10": "十月", "11": "十一月", "12": "十二月"
+        }
+        return month_map.get(month_num, "總")
+    return "總"
+
+
+@app.post("/process-excel")
+async def process_excel(file: UploadFile = File(...)):
     """
-    接收算式字串並回傳計算結果。
-    例：{ "expression": "3 + 5 * 2" } → { "result": 13.0, "expression": "3 + 5 * 2" }
+    接收前端上傳的 Excel 檔案，進行銷售資料加總與合併，
+    並回傳處理後的 Excel 檔案。
     """
-    expression = request.expression.strip()
-
-    if not expression:
-        raise HTTPException(status_code=400, detail="算式不能為空")
-
-    if len(expression) > 200:
-        raise HTTPException(status_code=400, detail="算式過長（最多 200 字元）")
+    if not file.filename.endswith(('.xls', '.xlsx')):
+        raise HTTPException(status_code=400, detail="請上傳有效的 Excel 檔案 (.xls 或 .xlsx)")
 
     try:
-        tree = ast.parse(expression, mode="eval")
-        result = safe_eval(tree)
+        # 讀取上傳檔案到 BytesIO
+        contents = await file.read()
+        file_stream = io.BytesIO(contents)
 
-        # 若結果為整數則回傳整數形式
-        if isinstance(result, float) and result.is_integer():
-            result = int(result)
+        # 根據檔名決定月份名稱前綴
+        month_str = get_month_name(file.filename)
+        vol_col = f"{month_str}銷售量"
+        amt_col = f"{month_str}銷售額"
 
-        return CalculateResponse(result=float(result), expression=expression)
+        # 讀取 Excel（套用 dtype 確保 SKU No 不會掉前導零）
+        df_mar = pd.read_excel(file_stream, dtype={"SKU no": str})
 
-    except ZeroDivisionError:
-        raise HTTPException(status_code=400, detail="除數不能為零")
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except SyntaxError:
-        raise HTTPException(status_code=400, detail="無效的算式語法")
-    except OverflowError:
-        raise HTTPException(status_code=400, detail="計算結果數字過大")
-    except Exception:
-        raise HTTPException(status_code=400, detail="無法計算此算式，請確認輸入格式")
+        # --- 以下為使用者的資料處理邏輯 --- 
+        df_mar = df_mar[["SKU no", "SKU title", "Volume", "Amount"]]
+        df_mar['SKU no'] = df_mar['SKU no'].astype(str).str.zfill(5).str.replace(" ", "")
+        
+        # 加總銷售量與金額
+        df_mar_grouped = df_mar.groupby("SKU no").agg({
+            "Volume": "sum",
+            "Amount": "sum"
+        }).reset_index()
+
+        # 重新命名欄位
+        df_mar_grouped = df_mar_grouped.rename(columns={
+            "SKU no": "SKU No.",
+            "Volume": vol_col,
+            "Amount": amt_col
+        })
+        df_mar_grouped["SKU No."] = df_mar_grouped["SKU No."].astype(str).str.strip()
+
+        # 從原始資料提取品名對照
+        df_mar.rename(columns={"SKU no": "SKU No.", "SKU title": "品名"}, inplace=True)
+        df_mar["SKU No."] = df_mar["SKU No."].astype(str).str.strip()
+        orders_unique = df_mar.drop_duplicates(subset=['SKU No.'], keep='first')
+        
+        # 合併結果
+        df_mar_res = df_mar_grouped.merge(orders_unique, on='SKU No.', how='left')
+        df_mar_res = df_mar_res[["SKU No.", "品名", vol_col, amt_col]]
+
+        # --- 處理完畢，準備匯出 Excel ---
+        output_stream = io.BytesIO()
+        df_mar_res.to_excel(output_stream, index=False)
+        output_stream.seek(0)
+
+        # 產生下載用的檔名（處理_原檔名.xlsx）
+        out_filename = f"processed_{file.filename}"
+
+        return StreamingResponse(
+            output_stream,
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={
+                "Content-Disposition": f'attachment; filename="{out_filename}"',
+                "Access-Control-Expose-Headers": "Content-Disposition"  # 讓前端能取到檔名
+            }
+        )
+
+    except KeyError as e:
+        raise HTTPException(status_code=400, detail=f"上傳的 Excel 檔案缺少必要欄位：{str(e)}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"檔案處理失敗: {str(e)}")
