@@ -192,7 +192,7 @@ function removeInventoryFile() {
 // ====================================================
 async function processFile() {
   const entries = Object.entries(assignedFiles).sort(([a], [b]) => a.localeCompare(b));
-  if (entries.length === 0) return;
+  if (entries.length === 0 && !inventoryFile) return;
 
   setLoading(true);
   setStatus("loading", "處理中，請稍候…");
