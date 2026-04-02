@@ -17,7 +17,7 @@
   <body>
     <div class="page-title">
       <h1>📊 <span>Excel 處理工具</span></h1>
-      <p>自動合併與加總 SKU 銷售資料</p>
+      <p>自動合併與加總多月份 SKU 銷售資料</p>
     </div>
 
     <div class="calculator-card uploader-card">
@@ -29,12 +29,14 @@
 
       <!-- 上傳區域 -->
       <div class="upload-zone" id="drop-zone">
-        <input type="file" id="file-input" accept=".xlsx, .xls" hidden />
+        <input type="file" id="file-input" accept=".xlsx, .xls" multiple hidden />
         <div class="upload-icon">📄</div>
         <p class="upload-title">點擊選擇或拖曳檔案至此</p>
-        <p class="upload-subtitle">支援 .xlsx 格式</p>
-        <div class="selected-file" id="file-name" style="display: none;">已選擇：<span></span></div>
+        <p class="upload-subtitle">可同時選取多個月份的 .xlsx 檔案</p>
       </div>
+
+      <!-- 已選檔案清單 -->
+      <div class="file-list" id="file-list" style="display: none;"></div>
 
       <!-- 操作按鈕 -->
       <button id="btn-process" class="btn btn-equals btn-wide" disabled onclick="processFile()">
@@ -43,7 +45,7 @@
       </button>
     </div>
 
-    <footer class="footer">自動識別檔名月份 (如 202603)</footer>
+    <footer class="footer">自動識別檔名月份 (如 20260301) · 支援多月份合併</footer>
 
     <script src="app.js"></script>
   </body>

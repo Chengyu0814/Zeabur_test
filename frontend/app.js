@@ -9,13 +9,12 @@ const API_URL = window.CALCULATOR_API_URL || "http://localhost:8000";
 const dropZone = document.getElementById("drop-zone");
 const fileInput = document.getElementById("file-input");
 const btnProcess = document.getElementById("btn-process");
-const fileNameDisplay = document.getElementById("file-name");
-const fileNameSpan = fileNameDisplay.querySelector("span");
+const fileList = document.getElementById("file-list");
 
 const statusDot = document.getElementById("status-dot");
 const statusText = document.getElementById("status-text");
 
-let selectedFile = null;
+let selectedFiles = [];
 
 // ====================================================
 // 上傳介面互動 (Drag & Drop)
@@ -37,40 +36,57 @@ dropZone.addEventListener("drop", (e) => {
   dropZone.classList.remove("dragover");
 
   if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-    handleFileSelect(e.dataTransfer.files[0]);
+    handleFileSelect(e.dataTransfer.files);
   }
 });
 
 fileInput.addEventListener("change", function () {
   if (this.files && this.files.length > 0) {
-    handleFileSelect(this.files[0]);
+    handleFileSelect(this.files);
   }
 });
 
-function handleFileSelect(file) {
-  // 檢查附檔名
-  if (!file.name.match(/\.(xlsx|xls)$/i)) {
+function handleFileSelect(files) {
+  const valid = Array.from(files).filter(f => f.name.match(/\.(xlsx|xls)$/i));
+
+  if (valid.length === 0) {
     alert("請上傳 Excel 檔案 (.xlsx 或 .xls)");
     return;
   }
-  selectedFile = file;
-  fileNameSpan.textContent = file.name;
-  fileNameDisplay.style.display = "block";
+
+  if (valid.length < files.length) {
+    alert(`已過濾掉 ${files.length - valid.length} 個非 Excel 檔案`);
+  }
+
+  selectedFiles = valid;
+  renderFileList();
   btnProcess.disabled = false;
-  setStatus("online", "檔案準備就緒");
+  setStatus("online", `已選取 ${selectedFiles.length} 個檔案，準備就緒`);
+}
+
+function renderFileList() {
+  if (selectedFiles.length === 0) {
+    fileList.style.display = "none";
+    return;
+  }
+
+  fileList.innerHTML = selectedFiles
+    .map((f, i) => `<div class="file-item"><span class="file-index">${i + 1}</span><span class="file-name-text">${f.name}</span></div>`)
+    .join("");
+  fileList.style.display = "block";
 }
 
 // ====================================================
 // API 呼叫：上傳與下載處理
 // ====================================================
 async function processFile() {
-  if (!selectedFile) return;
+  if (selectedFiles.length === 0) return;
 
   setLoading(true);
   setStatus("loading", "處理中，請稍候…");
 
   const formData = new FormData();
-  formData.append("file", selectedFile);
+  selectedFiles.forEach(f => formData.append("files", f));
 
   try {
     const response = await fetch(`${API_URL}/process-excel`, {
@@ -79,7 +95,6 @@ async function processFile() {
     });
 
     if (!response.ok) {
-      // 嘗試解析錯誤訊息
       let errorDetail = "檔案處理失敗";
       try {
         const errJson = await response.json();
@@ -92,22 +107,18 @@ async function processFile() {
       return;
     }
 
-    // 取得檔名（如果有 header 的話）或是預設一個檔名
     const contentDisposition = response.headers.get("Content-Disposition");
-    let filename = `processed_${selectedFile.name}`;
+    let filename = "TTW sales summary.xlsx";
     if (contentDisposition && contentDisposition.includes("filename=")) {
-      // 提取 filename="..." 裡面的內容
       const matches = contentDisposition.match(/filename="([^"]+)"/);
       if (matches && matches[1]) {
         filename = matches[1];
       }
     }
 
-    // 處理二進位檔案下載
     const blob = await response.blob();
     const downloadUrl = window.URL.createObjectURL(blob);
-    
-    // 建立臨時 <a> 標籤觸發下載
+
     const a = document.createElement("a");
     a.href = downloadUrl;
     a.download = filename;
@@ -143,7 +154,6 @@ function setStatus(state, text) {
   statusText.textContent = text;
 }
 
-// 初始化：檢查 API 健康狀態
 async function checkHealth() {
   setStatus("loading", "連線中…");
   try {
