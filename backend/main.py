@@ -22,19 +22,23 @@ def health_check():
     return {"status": "ok", "message": "Excel Processor API is running 🚀"}
 
 
+MONTH_NAMES = {
+    "01": "一月", "02": "二月", "03": "三月", "04": "四月",
+    "05": "五月", "06": "六月", "07": "七月", "08": "八月",
+    "09": "九月", "10": "十月", "11": "十一月", "12": "十二月"
+}
+
+
 def get_month_name(filename: str) -> str:
-    """提取檔案名稱中的月份（如 202603... -> 三月）"""
-    match = re.search(r'^2026(\d{2})', filename)
-    if match:
-        month_num = match.group(1)
-        # 簡單映射 01~12 到 一月~十二月，確保通用性
-        month_map = {
-            "01": "一月", "02": "二月", "03": "三月", "04": "四月", 
-            "05": "五月", "06": "六月", "07": "七月", "08": "八月", 
-            "09": "九月", "10": "十月", "11": "十一月", "12": "十二月"
-        }
-        return month_map.get(month_num, "總")
-    return "總"
+    """提取檔案名稱中的月份（如 20260301... -> 三月）"""
+    match = re.search(r"20\d{2}(\d{2})\d{2}", filename)
+    if not match:
+        raise ValueError(f"無法從檔名 '{filename}' 中偵測到月份，請確認格式為 20YYMMDD")
+    month_str = match.group(1)
+    month_name = MONTH_NAMES.get(month_str)
+    if not month_name:
+        raise ValueError(f"無效的月份：{month_str}")
+    return month_name
 
 
 @app.post("/process-excel")
@@ -52,7 +56,10 @@ async def process_excel(file: UploadFile = File(...)):
         file_stream = io.BytesIO(contents)
 
         # 根據檔名決定月份名稱前綴
-        month_str = get_month_name(file.filename)
+        try:
+            month_str = get_month_name(file.filename)
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
         vol_col = f"{month_str}銷售量"
         amt_col = f"{month_str}銷售額"
 
