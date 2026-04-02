@@ -6,18 +6,12 @@
     <title>Excel 處理小幫手</title>
     <meta name="description" content="飛買家銷售明細 Excel 自動計算合併工具" />
     <link rel="stylesheet" href="style.css" />
-
-    <!--
-      ⚙️ Zeabur 部署設定：
-      把下方 YOUR_BACKEND_DOMAIN 換成你在 Zeabur 後端服務的 domain，例如：
-      https://calculator-api.zeabur.app
-    -->
     <script>window.CALCULATOR_API_URL = "https://zeabur-test2.zeabur.app";</script>
   </head>
   <body>
     <div class="page-title">
       <h1>📊 <span>Excel 處理工具</span></h1>
-      <p>自動合併與加總多月份 SKU 銷售資料</p>
+      <p>將各月份銷售明細拖入對應格子，合併產生年度報表</p>
     </div>
 
     <div class="calculator-card uploader-card">
@@ -27,16 +21,21 @@
         <span id="status-text">連線中…</span>
       </div>
 
-      <!-- 上傳區域 -->
-      <div class="upload-zone" id="drop-zone">
-        <input type="file" id="file-input" accept=".xlsx, .xls" multiple hidden />
-        <div class="upload-icon">📄</div>
-        <p class="upload-title">點擊選擇或拖曳檔案至此</p>
-        <p class="upload-subtitle">可同時選取多個月份的 .xlsx 檔案</p>
+      <!-- 月份格子 -->
+      <div class="month-grid" id="month-grid">
+        <div class="month-slot" data-month="01"><input type="file" class="slot-input" accept=".xlsx,.xls" hidden><div class="month-label">一月</div><span class="slot-plus">+</span></div>
+        <div class="month-slot" data-month="02"><input type="file" class="slot-input" accept=".xlsx,.xls" hidden><div class="month-label">二月</div><span class="slot-plus">+</span></div>
+        <div class="month-slot" data-month="03"><input type="file" class="slot-input" accept=".xlsx,.xls" hidden><div class="month-label">三月</div><span class="slot-plus">+</span></div>
+        <div class="month-slot" data-month="04"><input type="file" class="slot-input" accept=".xlsx,.xls" hidden><div class="month-label">四月</div><span class="slot-plus">+</span></div>
+        <div class="month-slot" data-month="05"><input type="file" class="slot-input" accept=".xlsx,.xls" hidden><div class="month-label">五月</div><span class="slot-plus">+</span></div>
+        <div class="month-slot" data-month="06"><input type="file" class="slot-input" accept=".xlsx,.xls" hidden><div class="month-label">六月</div><span class="slot-plus">+</span></div>
+        <div class="month-slot" data-month="07"><input type="file" class="slot-input" accept=".xlsx,.xls" hidden><div class="month-label">七月</div><span class="slot-plus">+</span></div>
+        <div class="month-slot" data-month="08"><input type="file" class="slot-input" accept=".xlsx,.xls" hidden><div class="month-label">八月</div><span class="slot-plus">+</span></div>
+        <div class="month-slot" data-month="09"><input type="file" class="slot-input" accept=".xlsx,.xls" hidden><div class="month-label">九月</div><span class="slot-plus">+</span></div>
+        <div class="month-slot" data-month="10"><input type="file" class="slot-input" accept=".xlsx,.xls" hidden><div class="month-label">十月</div><span class="slot-plus">+</span></div>
+        <div class="month-slot" data-month="11"><input type="file" class="slot-input" accept=".xlsx,.xls" hidden><div class="month-label">十一月</div><span class="slot-plus">+</span></div>
+        <div class="month-slot" data-month="12"><input type="file" class="slot-input" accept=".xlsx,.xls" hidden><div class="month-label">十二月</div><span class="slot-plus">+</span></div>
       </div>
-
-      <!-- 已選檔案清單 -->
-      <div class="file-list" id="file-list" style="display: none;"></div>
 
       <!-- 操作按鈕 -->
       <button id="btn-process" class="btn btn-equals btn-wide" disabled onclick="processFile()">
@@ -45,7 +44,7 @@
       </button>
     </div>
 
-    <footer class="footer">自動識別檔名月份 (如 20260301) · 支援多月份合併</footer>
+    <footer class="footer">點擊或拖曳 .xlsx 檔案到對應月份格子</footer>
 
     <script src="app.js"></script>
   </body>

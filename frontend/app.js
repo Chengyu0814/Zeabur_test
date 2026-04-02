@@ -1,92 +1,140 @@
 // ====================================================
-// ⚙️  設定：部署到 Zeabur 後，改成你的後端 Domain
+// ⚙️  設定
 // ====================================================
 const API_URL = window.CALCULATOR_API_URL || "http://localhost:8000";
 
 // ====================================================
-// DOM 元素
+// 狀態
 // ====================================================
-const dropZone = document.getElementById("drop-zone");
-const fileInput = document.getElementById("file-input");
-const btnProcess = document.getElementById("btn-process");
-const fileList = document.getElementById("file-list");
+const assignedFiles = {}; // { "01": File, "03": File, ... }
 
 const statusDot = document.getElementById("status-dot");
 const statusText = document.getElementById("status-text");
-
-let selectedFiles = [];
+const btnProcess = document.getElementById("btn-process");
 
 // ====================================================
-// 上傳介面互動 (Drag & Drop)
+// 初始化 12 個月份格子
 // ====================================================
-dropZone.addEventListener("click", () => fileInput.click());
+document.querySelectorAll(".month-slot").forEach((slot) => {
+  const month = slot.dataset.month;
+  const input = slot.querySelector(".slot-input");
 
-dropZone.addEventListener("dragover", (e) => {
-  e.preventDefault();
-  dropZone.classList.add("dragover");
+  // 點擊格子 → 開啟檔案選擇（排除點到 × 按鈕）
+  slot.addEventListener("click", (e) => {
+    if (!e.target.classList.contains("remove-btn")) {
+      input.click();
+    }
+  });
+
+  // 選擇檔案後
+  input.addEventListener("change", function () {
+    if (this.files[0]) assignFile(month, this.files[0]);
+    this.value = ""; // 允許重複選同一檔案
+  });
+
+  // Drag & Drop
+  slot.addEventListener("dragover", (e) => {
+    e.preventDefault();
+    slot.classList.add("dragover");
+  });
+
+  slot.addEventListener("dragleave", () => {
+    slot.classList.remove("dragover");
+  });
+
+  slot.addEventListener("drop", (e) => {
+    e.preventDefault();
+    slot.classList.remove("dragover");
+    const file = e.dataTransfer.files[0];
+    if (file) {
+      if (!file.name.match(/\.(xlsx|xls)$/i)) {
+        alert("請上傳 Excel 檔案 (.xlsx 或 .xls)");
+        return;
+      }
+      assignFile(month, file);
+    }
+  });
 });
 
-dropZone.addEventListener("dragleave", (e) => {
-  e.preventDefault();
-  dropZone.classList.remove("dragover");
-});
-
-dropZone.addEventListener("drop", (e) => {
-  e.preventDefault();
-  dropZone.classList.remove("dragover");
-
-  if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-    handleFileSelect(e.dataTransfer.files);
-  }
-});
-
-fileInput.addEventListener("change", function () {
-  if (this.files && this.files.length > 0) {
-    handleFileSelect(this.files);
-  }
-});
-
-function handleFileSelect(files) {
-  const valid = Array.from(files).filter(f => f.name.match(/\.(xlsx|xls)$/i));
-
-  if (valid.length === 0) {
-    alert("請上傳 Excel 檔案 (.xlsx 或 .xls)");
-    return;
-  }
-
-  if (valid.length < files.length) {
-    alert(`已過濾掉 ${files.length - valid.length} 個非 Excel 檔案`);
-  }
-
-  selectedFiles = valid;
-  renderFileList();
-  btnProcess.disabled = false;
-  setStatus("online", `已選取 ${selectedFiles.length} 個檔案，準備就緒`);
+// ====================================================
+// 指定月份對應檔案
+// ====================================================
+function assignFile(month, file) {
+  assignedFiles[month] = file;
+  renderSlot(month);
+  updateButton();
 }
 
-function renderFileList() {
-  if (selectedFiles.length === 0) {
-    fileList.style.display = "none";
-    return;
-  }
+function removeFile(month) {
+  delete assignedFiles[month];
+  renderSlot(month);
+  updateButton();
+}
 
-  fileList.innerHTML = selectedFiles
-    .map((f, i) => `<div class="file-item"><span class="file-index">${i + 1}</span><span class="file-name-text">${f.name}</span></div>`)
-    .join("");
-  fileList.style.display = "block";
+function renderSlot(month) {
+  const slot = document.querySelector(`.month-slot[data-month="${month}"]`);
+  const plus = slot.querySelector(".slot-plus");
+  let fileEl = slot.querySelector(".slot-filename");
+  let removeBtn = slot.querySelector(".remove-btn");
+
+  if (assignedFiles[month]) {
+    slot.classList.add("assigned");
+    plus.style.display = "none";
+
+    if (!fileEl) {
+      fileEl = document.createElement("span");
+      fileEl.className = "slot-filename";
+      slot.appendChild(fileEl);
+    }
+    // 截短檔名：最多 14 個字元
+    const name = assignedFiles[month].name;
+    fileEl.textContent = name.length > 14 ? name.slice(0, 12) + "…" : name;
+    fileEl.title = name;
+
+    if (!removeBtn) {
+      removeBtn = document.createElement("span");
+      removeBtn.className = "remove-btn";
+      removeBtn.textContent = "×";
+      removeBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        removeFile(month);
+      });
+      slot.appendChild(removeBtn);
+    }
+  } else {
+    slot.classList.remove("assigned");
+    plus.style.display = "";
+    if (fileEl) fileEl.remove();
+    if (removeBtn) removeBtn.remove();
+  }
+}
+
+function updateButton() {
+  const count = Object.keys(assignedFiles).length;
+  btnProcess.disabled = count === 0;
+  if (count > 0) {
+    const months = Object.keys(assignedFiles).sort();
+    setStatus("online", `已放入 ${count} 個月份（${months.map(m => parseInt(m) + "月").join("、")}）`);
+  } else {
+    setStatus("online", "請將檔案拖入對應月份格子");
+  }
 }
 
 // ====================================================
-// API 呼叫：上傳與下載處理
+// API 呼叫
 // ====================================================
 async function processFile() {
-  if (selectedFiles.length === 0) return;
+  const entries = Object.entries(assignedFiles).sort(([a], [b]) => a.localeCompare(b));
+  if (entries.length === 0) return;
 
   setLoading(true);
   setStatus("loading", "處理中，請稍候…");
 
   const formData = new FormData();
-  selectedFiles.forEach(f => formData.append("files", f));
+  entries.forEach(([month, file]) => {
+    formData.append("files", file);
+    formData.append("months", month);
+  });
 
   try {
     const response = await fetch(`${API_URL}/process-excel`, {
@@ -109,30 +157,26 @@ async function processFile() {
 
     const contentDisposition = response.headers.get("Content-Disposition");
     let filename = "TTW sales summary.xlsx";
-    if (contentDisposition && contentDisposition.includes("filename=")) {
-      const matches = contentDisposition.match(/filename="([^"]+)"/);
-      if (matches && matches[1]) {
-        filename = matches[1];
-      }
+    if (contentDisposition) {
+      const m = contentDisposition.match(/filename="([^"]+)"/);
+      if (m) filename = m[1];
     }
 
     const blob = await response.blob();
-    const downloadUrl = window.URL.createObjectURL(blob);
-
+    const url = window.URL.createObjectURL(blob);
     const a = document.createElement("a");
-    a.href = downloadUrl;
+    a.href = url;
     a.download = filename;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
-    window.URL.revokeObjectURL(downloadUrl);
+    window.URL.revokeObjectURL(url);
 
-    setStatus("online", "處理成功並開始下載 🎉");
-
+    setStatus("online", "處理成功，開始下載 🎉");
   } catch (err) {
     alert("無法連接到伺服器或發生網路錯誤");
     setStatus("error", "連線失敗");
-    console.error("API 錯誤：", err);
+    console.error(err);
   } finally {
     setLoading(false);
   }
@@ -142,11 +186,7 @@ async function processFile() {
 // 輔助函式
 // ====================================================
 function setLoading(isLoading) {
-  if (isLoading) {
-    btnProcess.classList.add("loading");
-  } else {
-    btnProcess.classList.remove("loading");
-  }
+  btnProcess.classList.toggle("loading", isLoading);
 }
 
 function setStatus(state, text) {
@@ -159,7 +199,7 @@ async function checkHealth() {
   try {
     const res = await fetch(`${API_URL}/`, { signal: AbortSignal.timeout(5000) });
     if (res.ok) {
-      setStatus("online", "API 已連線，請上傳檔案");
+      setStatus("online", "API 已連線，請將檔案拖入月份格子");
     } else {
       setStatus("error", "API 伺服器異常");
     }

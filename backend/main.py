@@ -1,10 +1,9 @@
 import io
-import re
 from typing import List
 from functools import reduce
 
 import pandas as pd
-from fastapi import FastAPI, HTTPException, UploadFile, File
+from fastapi import FastAPI, Form, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 
@@ -38,41 +37,35 @@ MONTH_ORDER = [
 MONTH_NUM = {v: k for k, v in MONTH_NAMES.items()}
 
 
-def get_month_name(filename: str) -> str:
-    """提取檔案名稱中的月份（如 20260301... -> 三月）"""
-    match = re.search(r"20\d{2}(\d{2})\d{2}", filename)
-    if not match:
-        raise ValueError(f"無法從檔名 '{filename}' 中偵測到月份，請確認格式為 20YYMMDD")
-    month_str = match.group(1)
-    month_name = MONTH_NAMES.get(month_str)
-    if not month_name:
-        raise ValueError(f"無效的月份：{month_str}")
-    return month_name
-
 
 @app.post("/process-excel")
-async def process_excel(files: List[UploadFile] = File(...)):
+async def process_excel(
+    files: List[UploadFile] = File(...),
+    months: List[str] = Form(...)
+):
     """
     接收一或多個月份的 Excel 銷售明細，各自加總後 outer join，
     回傳 TTW sales summary MM-MM.xlsx。
+    months: 與 files 對應的月份編號清單，如 ["01", "03"]
     """
     if not files:
         raise HTTPException(status_code=400, detail="請至少上傳一個檔案")
+    if len(files) != len(months):
+        raise HTTPException(status_code=400, detail="files 與 months 數量不符")
 
     all_sales = []  # 每月: SKU No., month銷售量, month銷售額
     all_names = []  # 每月: SKU No., 品名
 
-    for file in files:
+    for file, month_str in zip(files, months):
         if not file.filename.endswith(('.xls', '.xlsx')):
             raise HTTPException(
                 status_code=400,
                 detail=f"檔案 '{file.filename}' 不是有效的 Excel 格式 (.xls 或 .xlsx)"
             )
 
-        try:
-            month_name = get_month_name(file.filename)
-        except ValueError as e:
-            raise HTTPException(status_code=400, detail=str(e))
+        month_name = MONTH_NAMES.get(month_str)
+        if not month_name:
+            raise HTTPException(status_code=400, detail=f"無效的月份：{month_str}")
 
         contents = await file.read()
         file_stream = io.BytesIO(contents)
