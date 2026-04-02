@@ -220,6 +220,14 @@ body::after {
 }
 
 /* ===================================
+   Data Sections
+   =================================== */
+
+.data-section {
+  margin-bottom: 14px;
+}
+
+/* ===================================
    Month Grid
    =================================== */
 
@@ -227,7 +235,7 @@ body::after {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 8px;
-  margin-bottom: 16px;
+  margin-bottom: 0;
 }
 
 .month-slot {
@@ -306,10 +314,6 @@ body::after {
 /* ===================================
    Inventory Upload
    =================================== */
-
-.inventory-section {
-  margin-bottom: 16px;
-}
 
 .section-label {
   font-size: 0.72rem;

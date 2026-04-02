@@ -111,13 +111,21 @@ function renderSlot(month) {
 }
 
 function updateButton() {
-  const count = Object.keys(assignedFiles).length;
-  btnProcess.disabled = count === 0;
-  if (count > 0) {
+  const salesCount = Object.keys(assignedFiles).length;
+  const hasInventory = inventoryFile !== null;
+  btnProcess.disabled = salesCount === 0 && !hasInventory;
+
+  const parts = [];
+  if (salesCount > 0) {
     const months = Object.keys(assignedFiles).sort();
-    setStatus("online", `已放入 ${count} 個月份（${months.map(m => parseInt(m) + "月").join("、")}）`);
+    parts.push(`銷售明細 ${months.map(m => parseInt(m) + "月").join("、")}`);
+  }
+  if (hasInventory) parts.push("在途庫存");
+
+  if (parts.length > 0) {
+    setStatus("online", `已選取：${parts.join("、")}`);
   } else {
-    setStatus("online", "請將檔案拖入對應月份格子");
+    setStatus("online", "請放入至少一個檔案");
   }
 }
 
@@ -167,6 +175,7 @@ function setInventoryFile(file) {
   invText.textContent = name;
   invText.title = file.name;
   invRemove.style.display = "";
+  updateButton();
 }
 
 function removeInventoryFile() {
@@ -175,6 +184,7 @@ function removeInventoryFile() {
   invText.textContent = "點擊或拖曳採購未交量 Excel 檔案";
   invText.title = "";
   invRemove.style.display = "none";
+  updateButton();
 }
 
 // ====================================================

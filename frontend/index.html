@@ -11,7 +11,7 @@
   <body>
     <div class="page-title">
       <h1>📊 <span>Excel 處理工具</span></h1>
-      <p>將各月份銷售明細拖入對應格子，合併產生年度報表</p>
+      <p>上傳需要的資料，系統自動合併產出報表</p>
     </div>
 
     <div class="calculator-card uploader-card">
@@ -21,24 +21,27 @@
         <span id="status-text">連線中…</span>
       </div>
 
-      <!-- 月份格子 -->
-      <div class="month-grid" id="month-grid">
-        <div class="month-slot" data-month="01"><input type="file" class="slot-input" accept=".xlsx,.xls" hidden><div class="month-label">一月</div><span class="slot-plus">+</span></div>
-        <div class="month-slot" data-month="02"><input type="file" class="slot-input" accept=".xlsx,.xls" hidden><div class="month-label">二月</div><span class="slot-plus">+</span></div>
-        <div class="month-slot" data-month="03"><input type="file" class="slot-input" accept=".xlsx,.xls" hidden><div class="month-label">三月</div><span class="slot-plus">+</span></div>
-        <div class="month-slot" data-month="04"><input type="file" class="slot-input" accept=".xlsx,.xls" hidden><div class="month-label">四月</div><span class="slot-plus">+</span></div>
-        <div class="month-slot" data-month="05"><input type="file" class="slot-input" accept=".xlsx,.xls" hidden><div class="month-label">五月</div><span class="slot-plus">+</span></div>
-        <div class="month-slot" data-month="06"><input type="file" class="slot-input" accept=".xlsx,.xls" hidden><div class="month-label">六月</div><span class="slot-plus">+</span></div>
-        <div class="month-slot" data-month="07"><input type="file" class="slot-input" accept=".xlsx,.xls" hidden><div class="month-label">七月</div><span class="slot-plus">+</span></div>
-        <div class="month-slot" data-month="08"><input type="file" class="slot-input" accept=".xlsx,.xls" hidden><div class="month-label">八月</div><span class="slot-plus">+</span></div>
-        <div class="month-slot" data-month="09"><input type="file" class="slot-input" accept=".xlsx,.xls" hidden><div class="month-label">九月</div><span class="slot-plus">+</span></div>
-        <div class="month-slot" data-month="10"><input type="file" class="slot-input" accept=".xlsx,.xls" hidden><div class="month-label">十月</div><span class="slot-plus">+</span></div>
-        <div class="month-slot" data-month="11"><input type="file" class="slot-input" accept=".xlsx,.xls" hidden><div class="month-label">十一月</div><span class="slot-plus">+</span></div>
-        <div class="month-slot" data-month="12"><input type="file" class="slot-input" accept=".xlsx,.xls" hidden><div class="month-label">十二月</div><span class="slot-plus">+</span></div>
+      <!-- 銷售明細 section -->
+      <div class="data-section">
+        <div class="section-label">銷售明細（選填）</div>
+        <div class="month-grid" id="month-grid">
+          <div class="month-slot" data-month="01"><input type="file" class="slot-input" accept=".xlsx,.xls" hidden><div class="month-label">一月</div><span class="slot-plus">+</span></div>
+          <div class="month-slot" data-month="02"><input type="file" class="slot-input" accept=".xlsx,.xls" hidden><div class="month-label">二月</div><span class="slot-plus">+</span></div>
+          <div class="month-slot" data-month="03"><input type="file" class="slot-input" accept=".xlsx,.xls" hidden><div class="month-label">三月</div><span class="slot-plus">+</span></div>
+          <div class="month-slot" data-month="04"><input type="file" class="slot-input" accept=".xlsx,.xls" hidden><div class="month-label">四月</div><span class="slot-plus">+</span></div>
+          <div class="month-slot" data-month="05"><input type="file" class="slot-input" accept=".xlsx,.xls" hidden><div class="month-label">五月</div><span class="slot-plus">+</span></div>
+          <div class="month-slot" data-month="06"><input type="file" class="slot-input" accept=".xlsx,.xls" hidden><div class="month-label">六月</div><span class="slot-plus">+</span></div>
+          <div class="month-slot" data-month="07"><input type="file" class="slot-input" accept=".xlsx,.xls" hidden><div class="month-label">七月</div><span class="slot-plus">+</span></div>
+          <div class="month-slot" data-month="08"><input type="file" class="slot-input" accept=".xlsx,.xls" hidden><div class="month-label">八月</div><span class="slot-plus">+</span></div>
+          <div class="month-slot" data-month="09"><input type="file" class="slot-input" accept=".xlsx,.xls" hidden><div class="month-label">九月</div><span class="slot-plus">+</span></div>
+          <div class="month-slot" data-month="10"><input type="file" class="slot-input" accept=".xlsx,.xls" hidden><div class="month-label">十月</div><span class="slot-plus">+</span></div>
+          <div class="month-slot" data-month="11"><input type="file" class="slot-input" accept=".xlsx,.xls" hidden><div class="month-label">十一月</div><span class="slot-plus">+</span></div>
+          <div class="month-slot" data-month="12"><input type="file" class="slot-input" accept=".xlsx,.xls" hidden><div class="month-label">十二月</div><span class="slot-plus">+</span></div>
+        </div>
       </div>
 
-      <!-- 在途庫存上傳（選填） -->
-      <div class="inventory-section">
+      <!-- 在途庫存 section -->
+      <div class="data-section">
         <div class="section-label">在途庫存（選填）</div>
         <div class="inventory-drop" id="inventory-drop">
           <input type="file" id="inventory-input" accept=".xlsx,.xls" hidden>
@@ -55,7 +58,7 @@
       </button>
     </div>
 
-    <footer class="footer">點擊或拖曳 .xlsx 檔案到對應月份格子</footer>
+    <footer class="footer">點擊或拖曳 .xlsx 到對應格子，兩個區塊皆為選填</footer>
 
     <script src="app.js"></script>
   </body>

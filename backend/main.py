@@ -38,7 +38,7 @@ MONTH_NUM = {v: k for k, v in MONTH_NAMES.items()}
 
 
 async def process_inventory(file: UploadFile) -> pd.DataFrame:
-    """處理採購未交量檔案，回傳 SKU No. + 在途庫存 的 DataFrame"""
+    """處理採購未交量檔案，回傳 SKU No. + 品名 + 在途庫存 的 DataFrame"""
     contents = await file.read()
     try:
         df = pd.read_excel(io.BytesIO(contents), header=3, dtype={"品    號": str})
@@ -54,123 +54,133 @@ async def process_inventory(file: UploadFile) -> pd.DataFrame:
 
     df["SKU No."] = df["SKU No."].astype(str).str.zfill(5)
     df = df.dropna(subset=["SKU No."])
-    # 刪除 SKU No. 包含中文字的資料列
     df = df[~df["SKU No."].str.contains(r'[\u4e00-\u9fff]', regex=True)]
-    # 只保留交貨庫為華膳-IT
     df = df[df["交貨庫"] == "華膳-IT"]
-    # 只保留 SKU No. 以 A 結尾的列
     df = df[df["SKU No."].str.endswith("A", na=False)]
-    # 去除尾端的 A，取前 5 碼
     df["SKU No."] = df["SKU No."].str.extract(r'(.{5})A$', expand=False)
     df["SKU No."] = df["SKU No."].astype(str).str.strip()
 
     df_res = df.groupby("SKU No.", as_index=False).agg({
+        "品名": "first",
         "在途庫存": "sum"
     })
-    return df_res[["SKU No.", "在途庫存"]]
+    return df_res[["SKU No.", "品名", "在途庫存"]]
 
 
 @app.post("/process-excel")
 async def process_excel(
-    files: List[UploadFile] = File(...),
-    months: List[str] = Form(...),
+    files: Optional[List[UploadFile]] = File(default=None),
+    months: Optional[List[str]] = Form(default=None),
     inventory_file: Optional[UploadFile] = File(None)
 ):
     """
-    接收一或多個月份的 Excel 銷售明細，各自加總後 outer join。
-    可選傳入採購未交量檔案，合併在途庫存欄位。
-    回傳 TTW sales summary MM-MM.xlsx。
+    銷售明細與在途庫存皆為選填，系統依據收到的資料組合回傳。
+    - 只有銷售 → TTW sales summary MM-MM.xlsx
+    - 只有在途庫存 → TTW inventory.xlsx
+    - 兩者都有 → 合併後的 TTW sales summary MM-MM.xlsx（含在途庫存欄）
     """
-    if not files:
+    has_sales = bool(files and any(f.filename for f in files))
+    has_inventory = bool(inventory_file and inventory_file.filename)
+
+    if not has_sales and not has_inventory:
         raise HTTPException(status_code=400, detail="請至少上傳一個檔案")
-    if len(files) != len(months):
-        raise HTTPException(status_code=400, detail="files 與 months 數量不符")
 
-    all_sales = []  # 每月: SKU No., month銷售量, month銷售額
-    all_names = []  # 每月: SKU No., 品名
+    result = None
+    present_months = []
 
-    for file, month_str in zip(files, months):
-        if not file.filename.endswith(('.xls', '.xlsx')):
-            raise HTTPException(
-                status_code=400,
-                detail=f"檔案 '{file.filename}' 不是有效的 Excel 格式 (.xls 或 .xlsx)"
-            )
+    # ── 處理銷售明細 ──────────────────────────────────────────
+    if has_sales:
+        if len(files) != len(months or []):
+            raise HTTPException(status_code=400, detail="files 與 months 數量不符")
 
-        month_name = MONTH_NAMES.get(month_str)
-        if not month_name:
-            raise HTTPException(status_code=400, detail=f"無效的月份：{month_str}")
+        all_sales = []
+        all_names = []
 
-        contents = await file.read()
-        file_stream = io.BytesIO(contents)
-
-        try:
-            excel_file = pd.ExcelFile(file_stream)
-            sheet_names = excel_file.sheet_names
-
-            if len(sheet_names) == 1:
-                target_sheet = sheet_names[0]
-            elif "details" in sheet_names:
-                target_sheet = "details"
-            else:
+        for file, month_str in zip(files, months):
+            if not file.filename.endswith(('.xls', '.xlsx')):
                 raise HTTPException(
                     status_code=400,
-                    detail=f"檔案 '{file.filename}' 包含多個工作表，但找不到名為 'details' 的工作表"
+                    detail=f"檔案 '{file.filename}' 不是有效的 Excel 格式 (.xls 或 .xlsx)"
                 )
 
-            df = pd.read_excel(excel_file, sheet_name=target_sheet, dtype={"SKU no": str})
-            df = df[["SKU no", "SKU title", "Volume", "Amount"]]
-        except KeyError as e:
-            raise HTTPException(
-                status_code=400,
-                detail=f"檔案 '{file.filename}' 缺少必要欄位：{str(e)}"
-            )
-        except HTTPException:
-            raise
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"讀取 '{file.filename}' 失敗: {str(e)}")
+            month_name = MONTH_NAMES.get(month_str)
+            if not month_name:
+                raise HTTPException(status_code=400, detail=f"無效的月份：{month_str}")
 
-        df['SKU no'] = df['SKU no'].astype(str).str.zfill(5).str.replace(" ", "", regex=False)
+            contents = await file.read()
+            file_stream = io.BytesIO(contents)
 
-        df_grouped = df.groupby("SKU no").agg({"Volume": "sum", "Amount": "sum"}).reset_index()
-        df_grouped = df_grouped.rename(columns={
-            "SKU no": "SKU No.",
-            "Volume": f"{month_name}銷售量",
-            "Amount": f"{month_name}銷售額"
-        })
-        df_grouped["SKU No."] = df_grouped["SKU No."].astype(str).str.strip()
+            try:
+                excel_file = pd.ExcelFile(file_stream)
+                sheet_names = excel_file.sheet_names
 
-        df.rename(columns={"SKU no": "SKU No.", "SKU title": "品名"}, inplace=True)
-        df["SKU No."] = df["SKU No."].astype(str).str.strip()
-        names = df.drop_duplicates(subset=["SKU No."], keep="first")[["SKU No.", "品名"]]
-        names = names[names["品名"].notna()]
+                if len(sheet_names) == 1:
+                    target_sheet = sheet_names[0]
+                elif "details" in sheet_names:
+                    target_sheet = "details"
+                else:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"檔案 '{file.filename}' 包含多個工作表，但找不到名為 'details' 的工作表"
+                    )
 
-        all_sales.append(df_grouped)
-        all_names.append(names)
+                df = pd.read_excel(excel_file, sheet_name=target_sheet, dtype={"SKU no": str})
+                df = df[["SKU no", "SKU title", "Volume", "Amount"]]
+            except KeyError as e:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"檔案 '{file.filename}' 缺少必要欄位：{str(e)}"
+                )
+            except HTTPException:
+                raise
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=f"讀取 '{file.filename}' 失敗: {str(e)}")
 
-    # Outer join 所有月份資料
-    result = reduce(lambda l, r: l.merge(r, on="SKU No.", how="outer"), all_sales)
+            df['SKU no'] = df['SKU no'].astype(str).str.zfill(5).str.replace(" ", "", regex=False)
 
-    # 品名：取所有月份中第一個非 null 的值
-    name_df = pd.concat(all_names).drop_duplicates(subset=["SKU No."], keep="first")
-    result = result.merge(name_df, on="SKU No.", how="left")
+            df_grouped = df.groupby("SKU no").agg({"Volume": "sum", "Amount": "sum"}).reset_index()
+            df_grouped = df_grouped.rename(columns={
+                "SKU no": "SKU No.",
+                "Volume": f"{month_name}銷售量",
+                "Amount": f"{month_name}銷售額"
+            })
+            df_grouped["SKU No."] = df_grouped["SKU No."].astype(str).str.strip()
 
-    # 整理欄位順序：SKU No., 品名, 各月銷售量..., 各月銷售額...
-    present_months = [m for m in MONTH_ORDER if f"{m}銷售量" in result.columns]
-    vol_cols = [f"{m}銷售量" for m in present_months]
-    amt_cols = [f"{m}銷售額" for m in present_months]
-    final_cols = ["SKU No.", "品名"] + vol_cols + amt_cols
+            df.rename(columns={"SKU no": "SKU No.", "SKU title": "品名"}, inplace=True)
+            df["SKU No."] = df["SKU No."].astype(str).str.strip()
+            names = df.drop_duplicates(subset=["SKU No."], keep="first")[["SKU No.", "品名"]]
+            names = names[names["品名"].notna()]
 
-    # 合併在途庫存（若有上傳）
-    if inventory_file and inventory_file.filename:
+            all_sales.append(df_grouped)
+            all_names.append(names)
+
+        result = reduce(lambda l, r: l.merge(r, on="SKU No.", how="outer"), all_sales)
+        name_df = pd.concat(all_names).drop_duplicates(subset=["SKU No."], keep="first")
+        result = result.merge(name_df, on="SKU No.", how="left")
+
+        present_months = [m for m in MONTH_ORDER if f"{m}銷售量" in result.columns]
+        vol_cols = [f"{m}銷售量" for m in present_months]
+        amt_cols = [f"{m}銷售額" for m in present_months]
+        result = result[["SKU No.", "品名"] + vol_cols + amt_cols]
+
+    # ── 處理在途庫存 ──────────────────────────────────────────
+    if has_inventory:
         df_inv = await process_inventory(inventory_file)
-        result = result.merge(df_inv, on="SKU No.", how="left")
-        final_cols.append("在途庫存")
 
-    result = result[final_cols]
+        if result is not None:
+            # 與銷售資料合併，品名優先使用銷售側的值
+            result = result.merge(df_inv[["SKU No.", "在途庫存"]], on="SKU No.", how="left")
+            result = result[result.columns.tolist()]
+        else:
+            # 只有在途庫存
+            result = df_inv[["SKU No.", "品名", "在途庫存"]]
 
-    # 輸出檔名
-    month_nums = [MONTH_NUM[m] for m in present_months]
-    out_filename = f"TTW sales summary {month_nums[0]}-{month_nums[-1]}.xlsx"
+    # ── 輸出 ──────────────────────────────────────────────────
+    if present_months:
+        month_nums = [MONTH_NUM[m] for m in present_months]
+        out_filename = f"TTW sales summary {month_nums[0]}-{month_nums[-1]}.xlsx"
+    else:
+        out_filename = "TTW inventory.xlsx"
 
     output_stream = io.BytesIO()
     result.to_excel(output_stream, index=False)
