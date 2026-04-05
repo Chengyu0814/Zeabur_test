@@ -38,7 +38,7 @@ MONTH_NUM = {v: k for k, v in MONTH_NAMES.items()}
 
 
 async def process_inventory(file: UploadFile) -> pd.DataFrame:
-    """處理採購未交量檔案，回傳 SKU No. + 品名 + 在途庫存 的 DataFrame"""
+    """處理 採購未交量 檔案，回傳 SKU No. + 品名 + 在途庫存 的 DataFrame"""
     contents = await file.read()
     try:
         df = pd.read_excel(io.BytesIO(contents), header=3, dtype={"品    號": str})
@@ -67,22 +67,56 @@ async def process_inventory(file: UploadFile) -> pd.DataFrame:
     return df_res[["SKU No.", "品名", "在途庫存"]]
 
 
+async def process_onboard(normal_file: UploadFile, fly_file: UploadFile) -> pd.DataFrame:
+    """處理 機上量 檔案（一般航線 × 41，串飛航線 × 10），回傳 SKU No. + 品名 + 機上量 的 DataFrame"""
+
+    async def read_onboard_file(file: UploadFile, multiplier: int):
+        contents = await file.read()
+        try:
+            df = pd.read_excel(io.BytesIO(contents), header=1, dtype={"SKU No.": str})
+            df = df.dropna(subset=["SKU No."]).copy()
+            df["SKU No."] = df["SKU No."].astype(str).str.strip().str.zfill(5)
+            df_calc = df[["SKU No.", "數量"]].copy()
+            df_calc["裝載數量"] = df_calc["數量"] * multiplier
+            df_result = df_calc.groupby("SKU No.")["裝載數量"].sum().reset_index()
+            df_unique = df[["SKU No.", "DESCRIPTION"]].drop_duplicates(subset=["SKU No."])
+        except KeyError as e:
+            raise HTTPException(status_code=400, detail=f"機上量檔案 '{file.filename}' 缺少必要欄位：{str(e)}")
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"讀取機上量檔案 '{file.filename}' 失敗: {str(e)}")
+        return df_result, df_unique
+
+    df_normal, normal_unique = await read_onboard_file(normal_file, 41)
+    df_fly, fly_unique = await read_onboard_file(fly_file, 10)
+
+    df_merged = pd.merge(df_normal, df_fly, on="SKU No.", how="outer", suffixes=("_normal", "_fly"))
+    df_merged["機上量"] = df_merged["裝載數量_normal"].fillna(0) + df_merged["裝載數量_fly"].fillna(0)
+    df_merged = df_merged[["SKU No.", "機上量"]]
+    df_merged = df_merged.merge(normal_unique, on="SKU No.", how="left")
+    df_merged = df_merged.merge(fly_unique, on="SKU No.", how="left", suffixes=("", "_fly"))
+    df_merged["品名"] = df_merged["DESCRIPTION"].fillna(df_merged["DESCRIPTION_fly"])
+    return df_merged[["SKU No.", "品名", "機上量"]]
+
+
 @app.post("/process-excel")
 async def process_excel(
     files: Optional[List[UploadFile]] = File(default=None),
     months: Optional[List[str]] = Form(default=None),
-    inventory_file: Optional[UploadFile] = File(None)
+    inventory_file: Optional[UploadFile] = File(None),
+    onboard_normal_file: Optional[UploadFile] = File(None),
+    onboard_fly_file: Optional[UploadFile] = File(None),
 ):
-    """
-    銷售明細與在途庫存皆為選填，系統依據收到的資料組合回傳。
-    - 只有銷售 → TTW sales summary MM-MM.xlsx
-    - 只有在途庫存 → TTW inventory.xlsx
-    - 兩者都有 → 合併後的 TTW sales summary MM-MM.xlsx（含在途庫存欄）
-    """
     has_sales = bool(files and any(f.filename for f in files))
     has_inventory = bool(inventory_file and inventory_file.filename)
+    has_onboard_normal = bool(onboard_normal_file and onboard_normal_file.filename)
+    has_onboard_fly = bool(onboard_fly_file and onboard_fly_file.filename)
 
-    if not has_sales and not has_inventory:
+    if has_onboard_normal != has_onboard_fly:
+        raise HTTPException(status_code=400, detail="一般航線與串飛航線檔案須同時上傳")
+
+    has_onboard = has_onboard_normal and has_onboard_fly
+
+    if not has_sales and not has_inventory and not has_onboard:
         raise HTTPException(status_code=400, detail="請至少上傳一個檔案")
 
     result = None
@@ -170,12 +204,19 @@ async def process_excel(
         if result is None:
             result = df_inv[["SKU No.", "品名", "在途庫存"]]
 
+    # ── 處理機上量 ────────────────────────────────────────────
+    df_onboard = None
+    if has_onboard:
+        df_onboard = await process_onboard(onboard_normal_file, onboard_fly_file)
+        if result is None:
+            result = df_onboard
+
     # ── 輸出 ──────────────────────────────────────────────────
     if present_months:
         month_nums = [MONTH_NUM[m] for m in present_months]
         out_filename = f"TTW sales summary {month_nums[0]}-{month_nums[-1]}.xlsx"
     else:
-        out_filename = "TTW inventory.xlsx"
+        out_filename = "TTW 庫存表.xlsx"
 
     output_stream = io.BytesIO()
     with pd.ExcelWriter(output_stream, engine="openpyxl") as writer:
@@ -183,8 +224,11 @@ async def process_excel(
             result.to_excel(writer, sheet_name="銷售明細", index=False)
         if df_inv is not None:
             df_inv[["SKU No.", "品名", "在途庫存"]].to_excel(writer, sheet_name="在途庫存", index=False)
-        if not has_sales and df_inv is None:
+        if df_onboard is not None:
+            df_onboard.to_excel(writer, sheet_name="機上量", index=False)
+        if not has_sales and df_inv is None and df_onboard is None:
             result.to_excel(writer, sheet_name="Sheet1", index=False)
+
     output_stream.seek(0)
 
     return StreamingResponse(

@@ -378,6 +378,15 @@ body::after {
   color: #ef4444;
 }
 
+.onboard-row {
+  display: flex;
+  gap: 10px;
+}
+
+.onboard-row .inventory-drop {
+  flex: 1;
+}
+
 /* ===================================
    File List (legacy, kept for reference)
    =================================== */
