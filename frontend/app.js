@@ -403,7 +403,7 @@ function removeImportFile() {
 // ====================================================
 async function processFile() {
   const entries = Object.entries(assignedFiles).sort(([a], [b]) => a.localeCompare(b));
-  if (entries.length === 0 && !inventoryFile && !onboardNormalFile && !onboardFlyFile && !stockFile && !importFile) return;
+  if (entries.length === 0 && !inventoryFile && !onboardNormalFile && !onboardFlyFile && !stockFile && !importFile && !costFile) return;
 
   setLoading(true);
   setStatus("loading", "處理中，請稍候…");
