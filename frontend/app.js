@@ -148,9 +148,6 @@ const onboardFlyInput = document.getElementById("onboard-fly-input");
 const onboardFlyText = document.getElementById("onboard-fly-text");
 const onboardFlyRemove = document.getElementById("onboard-fly-remove");
 
-onboardNormalDrop.addEventListener("click", (e) => {
-  if (!e.target.classList.contains("inv-remove")) onboardNormalInput.click();
-});
 onboardNormalInput.addEventListener("change", function () {
   if (this.files[0]) setOnboardFile("normal", this.files[0]);
   this.value = "";
@@ -167,9 +164,6 @@ onboardNormalDrop.addEventListener("drop", (e) => {
   }
 });
 
-onboardFlyDrop.addEventListener("click", (e) => {
-  if (!e.target.classList.contains("inv-remove")) onboardFlyInput.click();
-});
 onboardFlyInput.addEventListener("change", function () {
   if (this.files[0]) setOnboardFile("fly", this.files[0]);
   this.value = "";

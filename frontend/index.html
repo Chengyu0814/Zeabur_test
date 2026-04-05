@@ -55,18 +55,18 @@
       <div class="data-section">
         <div class="section-label">機上量</div>
         <div class="onboard-row">
-          <div class="inventory-drop" id="onboard-normal-drop">
+          <label class="inventory-drop" id="onboard-normal-drop" for="onboard-normal-input">
             <input type="file" id="onboard-normal-input" accept=".xlsx,.xls" hidden>
             <span class="inv-icon">✈️</span>
             <span class="inv-text" id="onboard-normal-text">一般航線</span>
-            <span class="inv-remove" id="onboard-normal-remove" style="display:none;" onclick="removeOnboardFile('normal')">×</span>
-          </div>
-          <div class="inventory-drop" id="onboard-fly-drop">
+            <span class="inv-remove" id="onboard-normal-remove" style="display:none;" onclick="event.preventDefault(); removeOnboardFile('normal')">×</span>
+          </label>
+          <label class="inventory-drop" id="onboard-fly-drop" for="onboard-fly-input">
             <input type="file" id="onboard-fly-input" accept=".xlsx,.xls" hidden>
             <span class="inv-icon">✈️</span>
             <span class="inv-text" id="onboard-fly-text">串飛航線</span>
-            <span class="inv-remove" id="onboard-fly-remove" style="display:none;" onclick="removeOnboardFile('fly')">×</span>
-          </div>
+            <span class="inv-remove" id="onboard-fly-remove" style="display:none;" onclick="event.preventDefault(); removeOnboardFile('fly')">×</span>
+          </label>
         </div>
       </div>
 
