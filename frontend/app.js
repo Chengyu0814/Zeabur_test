@@ -138,63 +138,89 @@ function updateButton() {
 // ====================================================
 // 機上量上傳
 // ====================================================
-function setupOnboardDrop(type) {
-  const drop = document.getElementById(`onboard-${type}-drop`);
-  const input = document.getElementById(`onboard-${type}-input`);
+const onboardNormalDrop = document.getElementById("onboard-normal-drop");
+const onboardNormalInput = document.getElementById("onboard-normal-input");
+const onboardNormalText = document.getElementById("onboard-normal-text");
+const onboardNormalRemove = document.getElementById("onboard-normal-remove");
 
-  drop.addEventListener("click", (e) => {
-    if (!e.target.classList.contains("inv-remove")) input.click();
-  });
+const onboardFlyDrop = document.getElementById("onboard-fly-drop");
+const onboardFlyInput = document.getElementById("onboard-fly-input");
+const onboardFlyText = document.getElementById("onboard-fly-text");
+const onboardFlyRemove = document.getElementById("onboard-fly-remove");
 
-  input.addEventListener("change", function () {
-    if (this.files[0]) setOnboardFile(type, this.files[0]);
-    this.value = "";
-  });
+onboardNormalDrop.addEventListener("click", (e) => {
+  if (!e.target.classList.contains("inv-remove")) onboardNormalInput.click();
+});
+onboardNormalInput.addEventListener("change", function () {
+  if (this.files[0]) setOnboardFile("normal", this.files[0]);
+  this.value = "";
+});
+onboardNormalDrop.addEventListener("dragover", (e) => { e.preventDefault(); onboardNormalDrop.classList.add("dragover"); });
+onboardNormalDrop.addEventListener("dragleave", () => { onboardNormalDrop.classList.remove("dragover"); });
+onboardNormalDrop.addEventListener("drop", (e) => {
+  e.preventDefault();
+  onboardNormalDrop.classList.remove("dragover");
+  const file = e.dataTransfer.files[0];
+  if (file) {
+    if (!file.name.match(/\.(xlsx|xls)$/i)) { alert("請上傳 Excel 檔案 (.xlsx 或 .xls)"); return; }
+    setOnboardFile("normal", file);
+  }
+});
 
-  drop.addEventListener("dragover", (e) => { e.preventDefault(); drop.classList.add("dragover"); });
-  drop.addEventListener("dragleave", () => { drop.classList.remove("dragover"); });
-  drop.addEventListener("drop", (e) => {
-    e.preventDefault();
-    drop.classList.remove("dragover");
-    const file = e.dataTransfer.files[0];
-    if (file) {
-      if (!file.name.match(/\.(xlsx|xls)$/i)) { alert("請上傳 Excel 檔案 (.xlsx 或 .xls)"); return; }
-      setOnboardFile(type, file);
-    }
-  });
-}
+onboardFlyDrop.addEventListener("click", (e) => {
+  if (!e.target.classList.contains("inv-remove")) onboardFlyInput.click();
+});
+onboardFlyInput.addEventListener("change", function () {
+  if (this.files[0]) setOnboardFile("fly", this.files[0]);
+  this.value = "";
+});
+onboardFlyDrop.addEventListener("dragover", (e) => { e.preventDefault(); onboardFlyDrop.classList.add("dragover"); });
+onboardFlyDrop.addEventListener("dragleave", () => { onboardFlyDrop.classList.remove("dragover"); });
+onboardFlyDrop.addEventListener("drop", (e) => {
+  e.preventDefault();
+  onboardFlyDrop.classList.remove("dragover");
+  const file = e.dataTransfer.files[0];
+  if (file) {
+    if (!file.name.match(/\.(xlsx|xls)$/i)) { alert("請上傳 Excel 檔案 (.xlsx 或 .xls)"); return; }
+    setOnboardFile("fly", file);
+  }
+});
 
 function setOnboardFile(type, file) {
-  if (type === "normal") onboardNormalFile = file;
-  else onboardFlyFile = file;
-
-  const drop = document.getElementById(`onboard-${type}-drop`);
-  const text = document.getElementById(`onboard-${type}-text`);
-  const remove = document.getElementById(`onboard-${type}-remove`);
-  drop.classList.add("assigned");
-  const name = file.name.length > 20 ? file.name.slice(0, 18) + "…" : file.name;
-  text.textContent = name;
-  text.title = file.name;
-  remove.style.display = "";
+  if (type === "normal") {
+    onboardNormalFile = file;
+    onboardNormalDrop.classList.add("assigned");
+    const name = file.name.length > 20 ? file.name.slice(0, 18) + "…" : file.name;
+    onboardNormalText.textContent = name;
+    onboardNormalText.title = file.name;
+    onboardNormalRemove.style.display = "";
+  } else {
+    onboardFlyFile = file;
+    onboardFlyDrop.classList.add("assigned");
+    const name = file.name.length > 20 ? file.name.slice(0, 18) + "…" : file.name;
+    onboardFlyText.textContent = name;
+    onboardFlyText.title = file.name;
+    onboardFlyRemove.style.display = "";
+  }
   updateButton();
 }
 
 function removeOnboardFile(type) {
-  if (type === "normal") onboardNormalFile = null;
-  else onboardFlyFile = null;
-
-  const drop = document.getElementById(`onboard-${type}-drop`);
-  const text = document.getElementById(`onboard-${type}-text`);
-  const remove = document.getElementById(`onboard-${type}-remove`);
-  drop.classList.remove("assigned");
-  text.textContent = type === "normal" ? "一般航線" : "串飛航線";
-  text.title = "";
-  remove.style.display = "none";
+  if (type === "normal") {
+    onboardNormalFile = null;
+    onboardNormalDrop.classList.remove("assigned");
+    onboardNormalText.textContent = "一般航線";
+    onboardNormalText.title = "";
+    onboardNormalRemove.style.display = "none";
+  } else {
+    onboardFlyFile = null;
+    onboardFlyDrop.classList.remove("assigned");
+    onboardFlyText.textContent = "串飛航線";
+    onboardFlyText.title = "";
+    onboardFlyRemove.style.display = "none";
+  }
   updateButton();
 }
-
-setupOnboardDrop("normal");
-setupOnboardDrop("fly");
 
 // ====================================================
 // 在途庫存上傳
