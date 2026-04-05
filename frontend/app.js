@@ -10,6 +10,7 @@ const assignedFiles = {}; // { "01": File, "03": File, ... }
 let inventoryFile = null;
 let onboardNormalFile = null;
 let onboardFlyFile = null;
+let stockFile = null;
 
 const statusDot = document.getElementById("status-dot");
 const statusText = document.getElementById("status-text");
@@ -116,7 +117,8 @@ function updateButton() {
   const salesCount = Object.keys(assignedFiles).length;
   const hasInventory = inventoryFile !== null;
   const hasOnboard = onboardNormalFile !== null && onboardFlyFile !== null;
-  const hasAny = salesCount > 0 || hasInventory || onboardNormalFile !== null || onboardFlyFile !== null;
+  const hasStock = stockFile !== null;
+  const hasAny = salesCount > 0 || hasInventory || onboardNormalFile !== null || onboardFlyFile !== null || hasStock;
   btnProcess.disabled = !hasAny;
 
   const parts = [];
@@ -127,6 +129,7 @@ function updateButton() {
   if (hasInventory) parts.push("在途庫存");
   if (hasOnboard) parts.push("機上量");
   else if (onboardNormalFile || onboardFlyFile) parts.push("機上量（需同時上傳兩個檔案）");
+  if (hasStock) parts.push("期末存量");
 
   if (parts.length > 0) {
     setStatus("online", `已選取：${parts.join("、")}`);
@@ -275,6 +278,64 @@ function removeInventoryFile() {
 }
 
 // ====================================================
+// 期末存量上傳
+// ====================================================
+const stockDrop = document.getElementById("stock-drop");
+const stockInput = document.getElementById("stock-input");
+const stockText = document.getElementById("stock-text");
+const stockRemove = document.getElementById("stock-remove");
+
+stockDrop.addEventListener("click", (e) => {
+  if (!e.target.classList.contains("inv-remove")) stockInput.click();
+});
+
+stockInput.addEventListener("change", function () {
+  if (this.files[0]) setStockFile(this.files[0]);
+  this.value = "";
+});
+
+stockDrop.addEventListener("dragover", (e) => {
+  e.preventDefault();
+  stockDrop.classList.add("dragover");
+});
+
+stockDrop.addEventListener("dragleave", () => {
+  stockDrop.classList.remove("dragover");
+});
+
+stockDrop.addEventListener("drop", (e) => {
+  e.preventDefault();
+  stockDrop.classList.remove("dragover");
+  const file = e.dataTransfer.files[0];
+  if (file) {
+    if (!file.name.match(/\.(xlsx|xls)$/i)) {
+      alert("請上傳 Excel 檔案 (.xlsx 或 .xls)");
+      return;
+    }
+    setStockFile(file);
+  }
+});
+
+function setStockFile(file) {
+  stockFile = file;
+  stockDrop.classList.add("assigned");
+  const name = file.name.length > 30 ? file.name.slice(0, 28) + "…" : file.name;
+  stockText.textContent = name;
+  stockText.title = file.name;
+  stockRemove.style.display = "";
+  updateButton();
+}
+
+function removeStockFile() {
+  stockFile = null;
+  stockDrop.classList.remove("assigned");
+  stockText.textContent = "選擇 IT Inventory Excel 檔案";
+  stockText.title = "";
+  stockRemove.style.display = "none";
+  updateButton();
+}
+
+// ====================================================
 // API 呼叫
 // ====================================================
 async function processFile() {
@@ -301,6 +362,10 @@ async function processFile() {
     alert("機上量需同時上傳一般航線與串飛航線兩個檔案");
     setLoading(false);
     return;
+  }
+
+  if (stockFile) {
+    formData.append("stock_file", stockFile);
   }
 
   try {

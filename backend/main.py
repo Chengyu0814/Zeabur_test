@@ -68,6 +68,24 @@ async def process_inventory(file: UploadFile) -> pd.DataFrame:
     return df_res[["SKU No.", "品名", "在途庫存"]]
 
 
+async def process_stock(file: UploadFile) -> pd.DataFrame:
+    """處理 期末存量 檔案，回傳 SKU No. + 品名 + 期末存量 的 DataFrame"""
+    contents = await file.read()
+    try:
+        df = pd.read_excel(io.BytesIO(contents), header=5, dtype={"料號": str})
+        df = df[["料號", "品名", "期末存量"]].rename(columns={"料號": "SKU No."})
+    except KeyError as e:
+        raise HTTPException(status_code=400, detail=f"期末存量檔案缺少必要欄位：{str(e)}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"讀取期末存量檔案失敗: {str(e)}")
+
+    df["SKU No."] = df["SKU No."].astype(str).str.zfill(5).str.strip()
+    first_empty = df[df["SKU No."].isnull()].index.min()
+    if pd.notna(first_empty):
+        df = df.iloc[:first_empty]
+    return df[["SKU No.", "品名", "期末存量"]]
+
+
 async def process_onboard(normal_file: UploadFile, fly_file: UploadFile) -> pd.DataFrame:
     """處理 機上量 檔案（一般航線 × 41，串飛航線 × 10），回傳 SKU No. + 品名 + 機上量 的 DataFrame"""
 
@@ -106,18 +124,20 @@ async def process_excel(
     inventory_file: Optional[UploadFile] = File(None),
     onboard_normal_file: Optional[UploadFile] = File(None),
     onboard_fly_file: Optional[UploadFile] = File(None),
+    stock_file: Optional[UploadFile] = File(None),
 ):
     has_sales = bool(files and any(f.filename for f in files))
     has_inventory = bool(inventory_file and inventory_file.filename)
     has_onboard_normal = bool(onboard_normal_file and onboard_normal_file.filename)
     has_onboard_fly = bool(onboard_fly_file and onboard_fly_file.filename)
+    has_stock = bool(stock_file and stock_file.filename)
 
     if has_onboard_normal != has_onboard_fly:
         raise HTTPException(status_code=400, detail="一般航線與串飛航線檔案須同時上傳")
 
     has_onboard = has_onboard_normal and has_onboard_fly
 
-    if not has_sales and not has_inventory and not has_onboard:
+    if not has_sales and not has_inventory and not has_onboard and not has_stock:
         raise HTTPException(status_code=400, detail="請至少上傳一個檔案")
 
     result = None
@@ -212,6 +232,13 @@ async def process_excel(
         if result is None:
             result = df_onboard
 
+    # ── 處理期末存量 ──────────────────────────────────────────
+    df_stock = None
+    if has_stock:
+        df_stock = await process_stock(stock_file)
+        if result is None:
+            result = df_stock
+
     # ── 輸出 ──────────────────────────────────────────────────
     if present_months:
         month_nums = [MONTH_NUM[m] for m in present_months]
@@ -227,7 +254,9 @@ async def process_excel(
             df_inv[["SKU No.", "品名", "在途庫存"]].to_excel(writer, sheet_name="在途庫存", index=False)
         if df_onboard is not None:
             df_onboard.to_excel(writer, sheet_name="機上量", index=False)
-        if not has_sales and df_inv is None and df_onboard is None:
+        if df_stock is not None:
+            df_stock.to_excel(writer, sheet_name="期末存量", index=False)
+        if not has_sales and df_inv is None and df_onboard is None and df_stock is None:
             result.to_excel(writer, sheet_name="Sheet1", index=False)
 
     output_stream.seek(0)
