@@ -1,4 +1,5 @@
 import io
+import json
 from urllib.parse import quote
 from typing import List, Optional
 from functools import reduce
@@ -66,6 +67,32 @@ async def process_inventory(file: UploadFile) -> pd.DataFrame:
         "在途庫存": "sum"
     })
     return df_res[["SKU No.", "品名", "在途庫存"]]
+
+
+async def process_cost(file: UploadFile, exchange_rates: dict) -> pd.DataFrame:
+    """處理 品號價格資料 檔案，回傳 SKU No. + 品名 + TWD成本 的 DataFrame"""
+    contents = await file.read()
+    try:
+        df = pd.read_excel(io.BytesIO(contents), header=2, dtype={"品號": str})
+        df = df[["品號", "品名", "幣別名稱", "採購單價", "核價日"]]
+    except KeyError as e:
+        raise HTTPException(status_code=400, detail=f"商品成本檔案缺少必要欄位：{str(e)}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"讀取商品成本檔案失敗: {str(e)}")
+
+    df["品號"] = df["品號"].astype(str).str.strip()
+    df = df[df["品號"].str.endswith("A", na=False)]
+    df["品號"] = df["品號"].str.extract(r'(.{5})A$', expand=False)
+
+    exchange_rates["台幣"] = 1.0
+    df["核價日"] = pd.to_datetime(df["核價日"])
+    df = df.sort_values(by=["品號", "核價日"], ascending=[True, True])
+    df = df.drop_duplicates(subset=["品號"], keep="last")
+
+    df["TWD成本"] = (df["幣別名稱"].map(exchange_rates) * df["採購單價"]).round(0)
+    df = df.reset_index(drop=True)
+    df.rename(columns={"品號": "SKU No."}, inplace=True)
+    return df[["SKU No.", "品名", "TWD成本"]]
 
 
 async def process_import(file: UploadFile) -> pd.DataFrame:
@@ -140,6 +167,23 @@ async def process_onboard(normal_file: UploadFile, fly_file: UploadFile) -> pd.D
     return df_merged[["SKU No.", "品名", "機上量"]]
 
 
+@app.post("/scan-cost-currencies")
+async def scan_cost_currencies(cost_file: UploadFile = File(...)):
+    contents = await cost_file.read()
+    try:
+        df = pd.read_excel(io.BytesIO(contents), header=2, dtype={"品號": str})
+        df = df[["品號", "幣別名稱"]]
+    except KeyError as e:
+        raise HTTPException(status_code=400, detail=f"商品成本檔案缺少必要欄位：{str(e)}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"讀取商品成本檔案失敗: {str(e)}")
+
+    df["品號"] = df["品號"].astype(str).str.strip()
+    df = df[df["品號"].str.endswith("A", na=False)]
+    currencies = [c for c in df["幣別名稱"].dropna().unique().tolist() if c != "台幣"]
+    return {"currencies": currencies}
+
+
 @app.post("/process-excel")
 async def process_excel(
     files: Optional[List[UploadFile]] = File(default=None),
@@ -149,6 +193,8 @@ async def process_excel(
     onboard_fly_file: Optional[UploadFile] = File(None),
     stock_file: Optional[UploadFile] = File(None),
     import_file: Optional[UploadFile] = File(None),
+    cost_file: Optional[UploadFile] = File(None),
+    exchange_rates_json: Optional[str] = Form(None),
 ):
     has_sales = bool(files and any(f.filename for f in files))
     has_inventory = bool(inventory_file and inventory_file.filename)
@@ -156,13 +202,14 @@ async def process_excel(
     has_onboard_fly = bool(onboard_fly_file and onboard_fly_file.filename)
     has_stock = bool(stock_file and stock_file.filename)
     has_import = bool(import_file and import_file.filename)
+    has_cost = bool(cost_file and cost_file.filename)
 
     if has_onboard_normal != has_onboard_fly:
         raise HTTPException(status_code=400, detail="一般航線與串飛航線檔案須同時上傳")
 
     has_onboard = has_onboard_normal and has_onboard_fly
 
-    if not has_sales and not has_inventory and not has_onboard and not has_stock and not has_import:
+    if not has_sales and not has_inventory and not has_onboard and not has_stock and not has_import and not has_cost:
         raise HTTPException(status_code=400, detail="請至少上傳一個檔案")
 
     result = None
@@ -271,6 +318,19 @@ async def process_excel(
         if result is None:
             result = df_import
 
+    # ── 處理商品成本 ──────────────────────────────────────────
+    df_cost = None
+    if has_cost:
+        if not exchange_rates_json:
+            raise HTTPException(status_code=400, detail="請提供匯率資料")
+        try:
+            exchange_rates = json.loads(exchange_rates_json)
+        except Exception:
+            raise HTTPException(status_code=400, detail="匯率格式錯誤")
+        df_cost = await process_cost(cost_file, exchange_rates)
+        if result is None:
+            result = df_cost
+
     # ── 輸出 ──────────────────────────────────────────────────
     if present_months:
         month_nums = [MONTH_NUM[m] for m in present_months]
@@ -290,7 +350,9 @@ async def process_excel(
             df_stock.to_excel(writer, sheet_name="期末存量", index=False)
         if df_import is not None:
             df_import.to_excel(writer, sheet_name="本月進貨", index=False)
-        if not has_sales and df_inv is None and df_onboard is None and df_stock is None and df_import is None:
+        if df_cost is not None:
+            df_cost.to_excel(writer, sheet_name="商品成本", index=False)
+        if not has_sales and df_inv is None and df_onboard is None and df_stock is None and df_import is None and df_cost is None:
             result.to_excel(writer, sheet_name="Sheet1", index=False)
 
     output_stream.seek(0)

@@ -497,6 +497,72 @@ body::after {
 .btn-equals.loading { pointer-events: none; }
 
 /* ===================================
+   Exchange Rate Panel
+   =================================== */
+
+.exchange-rates-panel {
+  margin-top: 8px;
+  padding: 12px 14px;
+  background: rgba(124, 58, 237, 0.06);
+  border: 1px solid rgba(124, 58, 237, 0.2);
+  border-radius: 12px;
+}
+
+.exchange-rates-hint {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  margin-bottom: 10px;
+}
+
+.exchange-rates-hint a {
+  color: #a855f7;
+  text-decoration: none;
+}
+
+.exchange-rates-hint a:hover {
+  text-decoration: underline;
+}
+
+.rate-input-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.rate-input-row:last-child {
+  margin-bottom: 0;
+}
+
+.rate-label {
+  font-size: 0.75rem;
+  color: var(--text-primary);
+  width: 70px;
+  flex-shrink: 0;
+}
+
+.rate-input {
+  flex: 1;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(124, 58, 237, 0.3);
+  border-radius: 8px;
+  padding: 6px 10px;
+  color: var(--text-primary);
+  font-size: 0.75rem;
+  font-family: 'Inter', sans-serif;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.rate-input:focus {
+  border-color: rgba(124, 58, 237, 0.7);
+}
+
+.rate-input::placeholder {
+  color: var(--text-secondary);
+}
+
+/* ===================================
    Footer
    =================================== */
 
