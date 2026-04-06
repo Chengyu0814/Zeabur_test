@@ -4,4 +4,6 @@ pydantic>=2.0.0
 pandas>=2.2.0
 openpyxl>=3.1.2
 xlrd>=2.0.1
+xlsxwriter>=3.2.0
+numpy>=1.26.0
 python-multipart>=0.0.9

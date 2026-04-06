@@ -109,6 +109,17 @@
         </div>
       </div>
 
+      <!-- 採購大表 section -->
+      <div class="data-section">
+        <div class="section-label">採購大表 <span style="font-weight:400;color:var(--text-secondary)">（選填：上傳後自動產出補貨計算表）</span></div>
+        <div class="inventory-drop" id="org-drop">
+          <input type="file" id="org-input" accept=".xlsx,.xls" hidden>
+          <span class="inv-icon">📋</span>
+          <span class="inv-text" id="org-text">選擇 TTW 採購大表 Excel 檔案（需含規劃性下架、成箱規定、lead time）</span>
+          <span class="inv-remove" id="org-remove" style="display:none;" onclick="removeOrgFile()">×</span>
+        </div>
+      </div>
+
       <!-- 操作按鈕 -->
       <button id="btn-process" class="btn btn-equals btn-wide" disabled onclick="processFile()">
         <span class="btn-label">產生並下載報表</span>

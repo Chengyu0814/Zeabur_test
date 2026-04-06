@@ -121,6 +121,7 @@ function updateButton() {
   const hasStock = stockFile !== null;
   const hasImport = importFile !== null;
   const hasCost = costFile !== null;
+  const hasOrg = orgFile !== null;
   const hasAny = salesCount > 0 || hasInventory || onboardNormalFile !== null || onboardFlyFile !== null || hasStock || hasImport || hasCost;
   btnProcess.disabled = !hasAny;
 
@@ -135,6 +136,7 @@ function updateButton() {
   if (hasStock) parts.push("期末存量");
   if (hasImport) parts.push("本月進貨");
   if (hasCost) parts.push("商品成本");
+  if (hasOrg) parts.push("採購大表（將產出補貨計算表）");
 
   if (parts.length > 0) {
     setStatus("online", `已選取：${parts.join("、")}`);
@@ -435,6 +437,10 @@ async function processFile() {
     formData.append("import_file", importFile);
   }
 
+  if (orgFile) {
+    formData.append("org_file", orgFile);
+  }
+
   if (costFile) {
     const missing = detectedCurrencies.filter(c => {
       const input = document.getElementById(`rate-${c}`);
@@ -576,6 +582,56 @@ function removeCostFile() {
   costRemove.style.display = "none";
   exchangeRatesPanel.style.display = "none";
   exchangeRateInputsEl.innerHTML = "";
+  updateButton();
+}
+
+// ====================================================
+// 採購大表上傳
+// ====================================================
+let orgFile = null;
+
+const orgDrop = document.getElementById("org-drop");
+const orgInput = document.getElementById("org-input");
+const orgText = document.getElementById("org-text");
+const orgRemove = document.getElementById("org-remove");
+
+orgDrop.addEventListener("click", (e) => {
+  if (!e.target.classList.contains("inv-remove")) orgInput.click();
+});
+
+orgInput.addEventListener("change", function () {
+  if (this.files[0]) setOrgFile(this.files[0]);
+  this.value = "";
+});
+
+orgDrop.addEventListener("dragover", (e) => { e.preventDefault(); orgDrop.classList.add("dragover"); });
+orgDrop.addEventListener("dragleave", () => { orgDrop.classList.remove("dragover"); });
+orgDrop.addEventListener("drop", (e) => {
+  e.preventDefault();
+  orgDrop.classList.remove("dragover");
+  const file = e.dataTransfer.files[0];
+  if (file) {
+    if (!file.name.match(/\.(xlsx|xls)$/i)) { alert("請上傳 Excel 檔案 (.xlsx 或 .xls)"); return; }
+    setOrgFile(file);
+  }
+});
+
+function setOrgFile(file) {
+  orgFile = file;
+  orgDrop.classList.add("assigned");
+  const name = file.name.length > 30 ? file.name.slice(0, 28) + "…" : file.name;
+  orgText.textContent = name;
+  orgText.title = file.name;
+  orgRemove.style.display = "";
+  updateButton();
+}
+
+function removeOrgFile() {
+  orgFile = null;
+  orgDrop.classList.remove("assigned");
+  orgText.textContent = "選擇 TTW 採購大表 Excel 檔案（需含規劃性下架、成箱規定、lead time）";
+  orgText.title = "";
+  orgRemove.style.display = "none";
   updateButton();
 }
 
