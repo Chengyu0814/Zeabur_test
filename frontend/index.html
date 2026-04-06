@@ -3,15 +3,14 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>飛買家庫存計算系統</title>
+    <title>TTB 虎航庫存計算系統</title>
     <meta name="description" content="飛買家銷售明細 Excel 自動計算合併工具" />
     <link rel="stylesheet" href="style.css" />
     <script>window.CALCULATOR_API_URL = "https://zeabur-test2.zeabur.app";</script>
   </head>
   <body>
     <div class="page-title">
-      <h1>📊 <span>飛買家庫存計算系統</span></h1>
-      <p>上傳需要的資料，系統自動合併產出報表</p>
+      <h1>📊 <span>TTB 虎航庫存計算系統</span></h1>
     </div>
 
     <div class="calculator-card uploader-card">
@@ -111,7 +110,7 @@
 
       <!-- 採購大表 section -->
       <div class="data-section">
-        <div class="section-label">採購大表 <span style="font-weight:400;color:var(--text-secondary)">（選填：上傳後自動產出補貨計算表）</span></div>
+        <div class="section-label">採購大表</div>
         <div class="inventory-drop" id="org-drop">
           <input type="file" id="org-input" accept=".xlsx,.xls" hidden>
           <span class="inv-icon">📋</span>
@@ -129,6 +128,7 @@
 
 
 
+    <p style="text-align:center;color:var(--text-secondary);font-size:0.85rem;margin-top:1rem;">Create by Peter (Update: 2026/04/06)</p>
     <script src="app.js"></script>
   </body>
 </html>
