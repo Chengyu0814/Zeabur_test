@@ -106,16 +106,27 @@ body::after {
 }
 
 .back-link {
-  display: inline-block;
-  font-size: 0.75rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.72rem;
+  font-weight: 500;
   color: var(--text-secondary);
   text-decoration: none;
-  margin-bottom: 10px;
-  transition: color 0.2s ease;
+  margin-bottom: 12px;
+  padding: 5px 12px;
+  border-radius: 20px;
+  border: 1px solid var(--glass-border);
+  background: var(--glass-bg);
+  transition: all 0.2s ease;
+  letter-spacing: 0.01em;
 }
 
 .back-link:hover {
   color: var(--text-primary);
+  border-color: rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.07);
+  transform: translateX(-2px);
 }
 
 /* ===================================
