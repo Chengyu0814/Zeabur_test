@@ -40,6 +40,17 @@
         </div>
       </div>
 
+      <!-- 在途庫存 section -->
+      <div class="data-section">
+        <div class="section-label">在途庫存</div>
+        <div class="inventory-drop" id="inventory-drop">
+          <input type="file" id="inventory-input" accept=".xlsx,.xls" hidden>
+          <span class="inv-icon">📦</span>
+          <span class="inv-text" id="inv-text">選擇採購未交量 Excel 檔案（選填）</span>
+          <span class="inv-remove" id="inv-remove" style="display:none;" onclick="removeInventoryFile()">×</span>
+        </div>
+      </div>
+
       <!-- 操作按鈕 -->
       <button id="btn-process" class="btn btn-equals btn-wide" disabled onclick="processFile()">
         <span class="btn-label">產生並下載報表</span>

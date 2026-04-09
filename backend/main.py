@@ -66,6 +66,31 @@ def process_cal_sheets(file_bytes: bytes, sheet_list: list, source_col: str, fil
     return df_merged
 
 
+async def process_cal_inventory(file: UploadFile) -> pd.DataFrame:
+    """處理華航採購未交量，回傳 PART_NO + 在途庫存 的 DataFrame（篩選 交貨庫=華膳-CI）"""
+    contents = await file.read()
+    try:
+        df = pd.read_excel(io.BytesIO(contents), header=3, dtype={"品    號": str})
+        df = df[["品    號", "未交數量", "交貨庫"]].rename(columns={
+            "品    號": "PART_NO",
+            "未交數量": "在途庫存"
+        })
+    except KeyError as e:
+        raise HTTPException(status_code=400, detail=f"在途庫存檔案缺少必要欄位：{str(e)}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"讀取在途庫存檔案失敗: {str(e)}")
+
+    df["PART_NO"] = df["PART_NO"].astype(str).str.zfill(5)
+    df = df.dropna(subset=["PART_NO"])
+    df = df[~df["PART_NO"].str.contains(r'[\u4e00-\u9fff]', regex=True)]
+    df = df[df["交貨庫"] == "華膳-CI"]
+    df = df[df["PART_NO"].str.endswith("A", na=False)]
+    df["PART_NO"] = df["PART_NO"].str.extract(r'(.{5})A$', expand=False).astype(str).str.strip()
+
+    df_res = df.groupby("PART_NO", as_index=False)["在途庫存"].sum()
+    return df_res
+
+
 async def process_inventory(file: UploadFile) -> pd.DataFrame:
     """處理 採購未交量 檔案，回傳 SKU No. + 品名 + 在途庫存 的 DataFrame"""
     contents = await file.read()
@@ -572,6 +597,7 @@ async def process_excel(
 async def cal_process_excel(
     files: List[UploadFile] = File(...),
     months: List[str] = Form(...),
+    inventory_file: Optional[UploadFile] = File(None),
 ):
     if len(files) != len(months):
         raise HTTPException(status_code=400, detail="files 與 months 數量不符")
@@ -627,10 +653,18 @@ async def cal_process_excel(
     merged = merged[merged['PART_NO'].astype(str).str.strip() != '']
     merged = merged.sort_values(by='PART_NO').reset_index(drop=True)
 
-    # 輸出檔名用最新月份
+    # 合併在途庫存（選填）
+    if inventory_file and inventory_file.filename:
+        df_inv = await process_cal_inventory(inventory_file)
+        merged['在途庫存'] = merged['在途庫存'].fillna(0).astype(int)
+
+    # 輸出檔名：X月到X月（單月則只顯示該月）
     present_months_sorted = [m for m in MONTH_ORDER if m in present_months]
-    out_month   = present_months_sorted[-1]
-    out_filename = f'華航庫存計算表({out_month}).xlsx'
+    if len(present_months_sorted) == 1:
+        month_range = present_months_sorted[0]
+    else:
+        month_range = f'{present_months_sorted[0]}到{present_months_sorted[-1]}'
+    out_filename = f'華航庫存計算表_{month_range}.xlsx'
 
     output_stream = io.BytesIO()
     with pd.ExcelWriter(output_stream, engine='openpyxl') as writer:
