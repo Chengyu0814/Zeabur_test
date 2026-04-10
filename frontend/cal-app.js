@@ -10,6 +10,8 @@ const assignedFiles = {}; // { "01": File, "03": File, ... }
 let inventoryFile = null;
 let costFile = null;
 let detectedCurrencies = [];
+let loadingFile = null;
+let procurementFile = null;
 
 const statusDot  = document.getElementById("status-dot");
 const statusText = document.getElementById("status-text");
@@ -104,7 +106,7 @@ function renderSlot(month) {
 
 function updateButton() {
   const count = Object.keys(assignedFiles).length;
-  btnProcess.disabled = count === 0 && !inventoryFile && !costFile;
+  btnProcess.disabled = count === 0 && !inventoryFile && !costFile && !loadingFile && !procurementFile;
 
   const parts = [];
   if (count > 0) {
@@ -113,6 +115,8 @@ function updateButton() {
   }
   if (inventoryFile) parts.push("在途庫存");
   if (costFile) parts.push("商品成本");
+  if (loadingFile) parts.push("裝載表");
+  if (procurementFile) parts.push("採購大表");
 
   if (parts.length > 0) {
     setStatus("online", `已選取：${parts.join("、")}`);
@@ -126,7 +130,7 @@ function updateButton() {
 // ====================================================
 async function processFile() {
   const entries = Object.entries(assignedFiles).sort(([a], [b]) => a.localeCompare(b));
-  if (entries.length === 0 && !inventoryFile && !costFile) return;
+  if (entries.length === 0 && !inventoryFile && !costFile && !loadingFile && !procurementFile) return;
 
   setLoading(true);
   setStatus("loading", "處理中，請稍候…");
@@ -153,6 +157,25 @@ async function processFile() {
     }
     formData.append("cost_file", costFile);
     formData.append("exchange_rates_json", JSON.stringify(getExchangeRates()));
+  }
+
+  if (loadingFile) {
+    formData.append("loading_file", loadingFile);
+    formData.append("loading_sets_json", JSON.stringify(getLoadingSets()));
+  }
+
+  if (procurementFile) {
+    if (!loadingFile) {
+      alert("上傳採購大表時需同時上傳新版裝載表");
+      setLoading(false);
+      return;
+    }
+    if (entries.length === 0) {
+      alert("上傳採購大表時需同時上傳月份資料");
+      setLoading(false);
+      return;
+    }
+    formData.append("procurement_file", procurementFile);
   }
 
   try {
@@ -361,6 +384,115 @@ function getExchangeRates() {
     if (input && input.value) rates[c] = parseFloat(input.value);
   });
   return rates;
+}
+
+// ====================================================
+// 新版裝載表上傳
+// ====================================================
+const loadingDrop = document.getElementById("loading-drop");
+const loadingInput = document.getElementById("loading-input");
+const loadingText = document.getElementById("loading-text");
+const loadingRemove = document.getElementById("loading-remove");
+const loadingSetsPanel = document.getElementById("loading-sets-panel");
+
+loadingDrop.addEventListener("click", (e) => {
+  if (!e.target.classList.contains("inv-remove")) loadingInput.click();
+});
+loadingInput.addEventListener("change", function () {
+  if (this.files[0]) setLoadingFile(this.files[0]);
+  this.value = "";
+});
+loadingDrop.addEventListener("dragover", (e) => { e.preventDefault(); loadingDrop.classList.add("dragover"); });
+loadingDrop.addEventListener("dragleave", () => { loadingDrop.classList.remove("dragover"); });
+loadingDrop.addEventListener("drop", (e) => {
+  e.preventDefault();
+  loadingDrop.classList.remove("dragover");
+  const file = e.dataTransfer.files[0];
+  if (file) {
+    if (!file.name.match(/\.(xlsx|xls)$/i)) { alert("請上傳 Excel 檔案 (.xlsx 或 .xls)"); return; }
+    setLoadingFile(file);
+  }
+});
+
+function setLoadingFile(file) {
+  loadingFile = file;
+  loadingDrop.classList.add("assigned");
+  const name = file.name.length > 30 ? file.name.slice(0, 28) + "…" : file.name;
+  loadingText.textContent = name;
+  loadingText.title = file.name;
+  loadingRemove.style.display = "";
+  loadingSetsPanel.style.display = "";
+  updateButton();
+}
+
+function removeLoadingFile() {
+  loadingFile = null;
+  loadingDrop.classList.remove("assigned");
+  loadingText.textContent = "選擇新版裝載表 Excel 檔案（選填）";
+  loadingText.title = "";
+  loadingRemove.style.display = "none";
+  loadingSetsPanel.style.display = "none";
+  updateButton();
+}
+
+function getLoadingSets() {
+  const airports = ['tpe', 'tsa', 'khh', 'rmq'];
+  const types = ['A', 'B', 'B7'];
+  const sets = {};
+  airports.forEach(ap => {
+    sets[ap] = {};
+    types.forEach(t => {
+      const input = document.getElementById(`ls-${ap}-${t}`);
+      sets[ap][t] = input ? parseInt(input.value) || 0 : 0;
+    });
+  });
+  return sets;
+}
+
+// ====================================================
+// 採購大表上傳
+// ====================================================
+const procurementDrop = document.getElementById("procurement-drop");
+const procurementInput = document.getElementById("procurement-input");
+const procurementText = document.getElementById("procurement-text");
+const procurementRemove = document.getElementById("procurement-remove");
+
+procurementDrop.addEventListener("click", (e) => {
+  if (!e.target.classList.contains("inv-remove")) procurementInput.click();
+});
+procurementInput.addEventListener("change", function () {
+  if (this.files[0]) setProcurementFile(this.files[0]);
+  this.value = "";
+});
+procurementDrop.addEventListener("dragover", (e) => { e.preventDefault(); procurementDrop.classList.add("dragover"); });
+procurementDrop.addEventListener("dragleave", () => { procurementDrop.classList.remove("dragover"); });
+procurementDrop.addEventListener("drop", (e) => {
+  e.preventDefault();
+  procurementDrop.classList.remove("dragover");
+  const file = e.dataTransfer.files[0];
+  if (file) {
+    if (!file.name.match(/\.(xlsx|xls)$/i)) { alert("請上傳 Excel 檔案 (.xlsx 或 .xls)"); return; }
+    setProcurementFile(file);
+  }
+});
+
+function setProcurementFile(file) {
+  procurementFile = file;
+  procurementDrop.classList.add("assigned");
+  const name = file.name.length > 30 ? file.name.slice(0, 28) + "…" : file.name;
+  procurementText.textContent = name;
+  procurementText.title = file.name;
+  procurementRemove.style.display = "";
+  updateButton();
+}
+
+function removeProcurementFile() {
+  procurementFile = null;
+  procurementDrop.classList.remove("assigned");
+  procurementText.textContent = "選擇 CAL 採購大表 Excel 檔案（選填）";
+  procurementText.title = "";
+  procurementRemove.style.display = "none";
+  updateButton();
 }
 
 checkHealth();

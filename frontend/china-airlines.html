@@ -68,6 +68,38 @@
         </div>
       </div>
 
+      <!-- 新版裝載表 section -->
+      <div class="data-section">
+        <div class="section-label">新版裝載表</div>
+        <div class="inventory-drop" id="loading-drop">
+          <input type="file" id="loading-input" accept=".xlsx,.xls" hidden>
+          <span class="inv-icon">✈️</span>
+          <span class="inv-text" id="loading-text">選擇新版裝載表 Excel 檔案（選填）</span>
+          <span class="inv-remove" id="loading-remove" style="display:none;" onclick="removeLoadingFile()">×</span>
+        </div>
+        <div class="loading-sets-panel" id="loading-sets-panel" style="display:none;">
+          <div class="exchange-rates-hint">裝載套數設定（可修改預設值）</div>
+          <table class="loading-sets-table" style="width:100%;font-size:0.75rem;margin-top:6px;">
+            <tr><th></th><th>A</th><th>B</th><th>B7</th></tr>
+            <tr><td>TPE</td><td><input class="rate-input" type="number" id="ls-tpe-A" value="247" min="0"></td><td><input class="rate-input" type="number" id="ls-tpe-B" value="62" min="0"></td><td><input class="rate-input" type="number" id="ls-tpe-B7" value="27" min="0"></td></tr>
+            <tr><td>TSA</td><td><input class="rate-input" type="number" id="ls-tsa-A" value="12" min="0"></td><td><input class="rate-input" type="number" id="ls-tsa-B" value="5" min="0"></td><td><input class="rate-input" type="number" id="ls-tsa-B7" value="0" min="0"></td></tr>
+            <tr><td>KHH</td><td><input class="rate-input" type="number" id="ls-khh-A" value="15" min="0"></td><td><input class="rate-input" type="number" id="ls-khh-B" value="6" min="0"></td><td><input class="rate-input" type="number" id="ls-khh-B7" value="0" min="0"></td></tr>
+            <tr><td>RMQ</td><td><input class="rate-input" type="number" id="ls-rmq-A" value="2" min="0"></td><td><input class="rate-input" type="number" id="ls-rmq-B" value="2" min="0"></td><td><input class="rate-input" type="number" id="ls-rmq-B7" value="0" min="0"></td></tr>
+          </table>
+        </div>
+      </div>
+
+      <!-- 採購大表 section -->
+      <div class="data-section">
+        <div class="section-label">採購大表</div>
+        <div class="inventory-drop" id="procurement-drop">
+          <input type="file" id="procurement-input" accept=".xlsx,.xls" hidden>
+          <span class="inv-icon">📋</span>
+          <span class="inv-text" id="procurement-text">選擇 CAL 採購大表 Excel 檔案（選填）</span>
+          <span class="inv-remove" id="procurement-remove" style="display:none;" onclick="removeProcurementFile()">×</span>
+        </div>
+      </div>
+
       <!-- 操作按鈕 -->
       <button id="btn-process" class="btn btn-equals btn-wide" disabled onclick="processFile()">
         <span class="btn-label">產生並下載報表</span>
@@ -76,6 +108,6 @@
     </div>
 
     <p style="text-align:center;color:var(--text-secondary);font-size:0.85rem;margin-top:1rem;">Create by Peter (Update: 2026/04/09)</p>
-    <script src="cal-app.js?v=2"></script>
+    <script src="cal-app.js?v=3"></script>
   </body>
 </html>

@@ -587,3 +587,26 @@ body::after {
   color: var(--text-secondary);
 }
 
+.loading-sets-table th,
+.loading-sets-table td {
+  padding: 4px 6px;
+  text-align: center;
+  color: var(--text-primary);
+}
+
+.loading-sets-table th {
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.loading-sets-table td:first-child {
+  font-weight: 600;
+  text-align: left;
+  color: var(--text-secondary);
+}
+
+.loading-sets-table .rate-input {
+  width: 60px;
+  text-align: center;
+}
+
