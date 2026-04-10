@@ -51,6 +51,23 @@
         </div>
       </div>
 
+      <!-- 商品成本 section -->
+      <div class="data-section">
+        <div class="section-label">商品成本</div>
+        <div class="inventory-drop" id="cost-drop">
+          <input type="file" id="cost-input" accept=".xlsx,.xls" hidden>
+          <span class="inv-icon">💰</span>
+          <span class="inv-text" id="cost-text">選擇品號價格資料 Excel 檔案（選填）</span>
+          <span class="inv-remove" id="cost-remove" style="display:none;" onclick="removeCostFile()">×</span>
+        </div>
+        <div class="exchange-rates-panel" id="exchange-rates-panel" style="display:none;">
+          <div class="exchange-rates-hint">
+            請參考 <a href="https://rate.bot.com.tw/xrt?Lang=zh-TW" target="_blank">台灣銀行匯率</a>（現金匯率，買入加賣出平均）
+          </div>
+          <div id="exchange-rate-inputs"></div>
+        </div>
+      </div>
+
       <!-- 操作按鈕 -->
       <button id="btn-process" class="btn btn-equals btn-wide" disabled onclick="processFile()">
         <span class="btn-label">產生並下載報表</span>

@@ -8,6 +8,8 @@ const API_URL = window.CALCULATOR_API_URL || "http://localhost:8000";
 // ====================================================
 const assignedFiles = {}; // { "01": File, "03": File, ... }
 let inventoryFile = null;
+let costFile = null;
+let detectedCurrencies = [];
 
 const statusDot  = document.getElementById("status-dot");
 const statusText = document.getElementById("status-text");
@@ -102,7 +104,7 @@ function renderSlot(month) {
 
 function updateButton() {
   const count = Object.keys(assignedFiles).length;
-  btnProcess.disabled = count === 0;
+  btnProcess.disabled = count === 0 && !inventoryFile && !costFile;
 
   const parts = [];
   if (count > 0) {
@@ -110,6 +112,7 @@ function updateButton() {
     parts.push(months.map(m => parseInt(m) + "月").join("、"));
   }
   if (inventoryFile) parts.push("在途庫存");
+  if (costFile) parts.push("商品成本");
 
   if (parts.length > 0) {
     setStatus("online", `已選取：${parts.join("、")}`);
@@ -123,7 +126,7 @@ function updateButton() {
 // ====================================================
 async function processFile() {
   const entries = Object.entries(assignedFiles).sort(([a], [b]) => a.localeCompare(b));
-  if (entries.length === 0) return;
+  if (entries.length === 0 && !inventoryFile && !costFile) return;
 
   setLoading(true);
   setStatus("loading", "處理中，請稍候…");
@@ -136,6 +139,20 @@ async function processFile() {
 
   if (inventoryFile) {
     formData.append("inventory_file", inventoryFile);
+  }
+
+  if (costFile) {
+    const missing = detectedCurrencies.filter(c => {
+      const input = document.getElementById(`rate-${c}`);
+      return !input || !input.value;
+    });
+    if (missing.length > 0) {
+      alert(`請填寫以下幣別的匯率：${missing.join("、")}`);
+      setLoading(false);
+      return;
+    }
+    formData.append("cost_file", costFile);
+    formData.append("exchange_rates_json", JSON.stringify(getExchangeRates()));
   }
 
   try {
@@ -254,6 +271,96 @@ function removeInventoryFile() {
   invText.title = "";
   invRemove.style.display = "none";
   updateButton();
+}
+
+// ====================================================
+// 商品成本上傳
+// ====================================================
+const costDrop = document.getElementById("cost-drop");
+const costInput = document.getElementById("cost-input");
+const costText = document.getElementById("cost-text");
+const costRemove = document.getElementById("cost-remove");
+const exchangeRatesPanel = document.getElementById("exchange-rates-panel");
+const exchangeRateInputsEl = document.getElementById("exchange-rate-inputs");
+
+costDrop.addEventListener("click", (e) => {
+  if (!e.target.classList.contains("inv-remove")) costInput.click();
+});
+
+costInput.addEventListener("change", function () {
+  if (this.files[0]) setCostFile(this.files[0]);
+  this.value = "";
+});
+
+costDrop.addEventListener("dragover", (e) => { e.preventDefault(); costDrop.classList.add("dragover"); });
+costDrop.addEventListener("dragleave", () => { costDrop.classList.remove("dragover"); });
+costDrop.addEventListener("drop", (e) => {
+  e.preventDefault();
+  costDrop.classList.remove("dragover");
+  const file = e.dataTransfer.files[0];
+  if (file) {
+    if (!file.name.match(/\.(xlsx|xls)$/i)) { alert("請上傳 Excel 檔案 (.xlsx 或 .xls)"); return; }
+    setCostFile(file);
+  }
+});
+
+async function setCostFile(file) {
+  costFile = file;
+  costDrop.classList.add("assigned");
+  const name = file.name.length > 30 ? file.name.slice(0, 28) + "…" : file.name;
+  costText.textContent = name;
+  costText.title = file.name;
+  costRemove.style.display = "";
+  updateButton();
+
+  exchangeRateInputsEl.innerHTML = '<div style="font-size:0.72rem;color:var(--text-secondary)">掃描幣別中…</div>';
+  exchangeRatesPanel.style.display = "";
+
+  try {
+    const fd = new FormData();
+    fd.append("cost_file", file);
+    const res = await fetch(`${API_URL}/scan-cost-currencies`, { method: "POST", body: fd });
+    if (!res.ok) throw new Error("scan failed");
+    const data = await res.json();
+    detectedCurrencies = data.currencies;
+    renderExchangeRateInputs(detectedCurrencies);
+  } catch {
+    exchangeRateInputsEl.innerHTML = '<div style="font-size:0.72rem;color:#ef4444">掃描幣別失敗，請確認檔案格式</div>';
+  }
+}
+
+function renderExchangeRateInputs(currencies) {
+  if (currencies.length === 0) {
+    exchangeRateInputsEl.innerHTML = '<div style="font-size:0.72rem;color:var(--text-secondary)">全部為台幣，無需填寫匯率</div>';
+    return;
+  }
+  exchangeRateInputsEl.innerHTML = currencies.map(c => `
+    <div class="rate-input-row">
+      <span class="rate-label">${c}</span>
+      <input class="rate-input" type="number" step="0.0001" min="0" placeholder="請輸入匯率" id="rate-${c}" data-currency="${c}">
+    </div>
+  `).join("");
+}
+
+function removeCostFile() {
+  costFile = null;
+  detectedCurrencies = [];
+  costDrop.classList.remove("assigned");
+  costText.textContent = "選擇品號價格資料 Excel 檔案（選填）";
+  costText.title = "";
+  costRemove.style.display = "none";
+  exchangeRatesPanel.style.display = "none";
+  exchangeRateInputsEl.innerHTML = "";
+  updateButton();
+}
+
+function getExchangeRates() {
+  const rates = { "台幣": 1.0 };
+  detectedCurrencies.forEach(c => {
+    const input = document.getElementById(`rate-${c}`);
+    if (input && input.value) rates[c] = parseFloat(input.value);
+  });
+  return rates;
 }
 
 checkHealth();

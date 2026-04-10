@@ -66,6 +66,32 @@ def process_cal_sheets(file_bytes: bytes, sheet_list: list, source_col: str, fil
     return df_merged
 
 
+async def process_cal_cost(file: UploadFile, exchange_rates: dict) -> pd.DataFrame:
+    """處理華航品號價格資料，回傳 PART_NO + 品名 + TWD成本 的 DataFrame"""
+    contents = await file.read()
+    try:
+        df = pd.read_excel(io.BytesIO(contents), header=2, dtype={"品號": str})
+        df = df[["品號", "品名", "幣別名稱", "採購單價", "核價日"]]
+    except KeyError as e:
+        raise HTTPException(status_code=400, detail=f"商品成本檔案缺少必要欄位：{str(e)}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"讀取商品成本檔案失敗: {str(e)}")
+
+    df["品號"] = df["品號"].astype(str).str.strip()
+    df = df[df["品號"].str.endswith("A", na=False)]
+    df["品號"] = df["品號"].str.extract(r'(.{5})A$', expand=False)
+
+    exchange_rates["台幣"] = 1.0
+    df["核價日"] = pd.to_datetime(df["核價日"])
+    df = df.sort_values(by=["品號", "核價日"], ascending=[True, True])
+    df = df.drop_duplicates(subset=["品號"], keep="last")
+
+    df["TWD成本"] = (df["幣別名稱"].map(exchange_rates) * df["採購單價"]).round(0)
+    df = df.reset_index(drop=True)
+    df.rename(columns={"品號": "PART_NO"}, inplace=True)
+    return df[["PART_NO", "品名", "TWD成本"]]
+
+
 async def process_cal_inventory(file: UploadFile) -> pd.DataFrame:
     """處理華航採購未交量，回傳 PART_NO + 在途庫存 的 DataFrame（篩選 交貨庫=華膳-CI）"""
     contents = await file.read()
@@ -595,12 +621,24 @@ async def process_excel(
 
 @app.post("/cal/process-excel")
 async def cal_process_excel(
-    files: List[UploadFile] = File(...),
-    months: List[str] = Form(...),
+    files: List[UploadFile] = File(None),
+    months: List[str] = Form(None),
     inventory_file: Optional[UploadFile] = File(None),
+    cost_file: Optional[UploadFile] = File(None),
+    exchange_rates_json: Optional[str] = Form(None),
 ):
+    files = files or []
+    months = months or []
+
     if len(files) != len(months):
         raise HTTPException(status_code=400, detail="files 與 months 數量不符")
+
+    has_months = len(files) > 0
+    has_inventory = inventory_file and inventory_file.filename
+    has_cost = bool(cost_file and cost_file.filename)
+
+    if not has_months and not has_inventory and not has_cost:
+        raise HTTPException(status_code=400, detail="請至少上傳一種檔案")
 
     month_dfs = []
     present_months = []
@@ -641,31 +679,56 @@ async def cal_process_excel(
         month_dfs.append(df_month)
         present_months.append(month_name)
 
-    # 所有月份以 PART_NO outer join 合併成一張表
-    merged = reduce(lambda l, r: l.merge(r, on='PART_NO', how='outer'), month_dfs)
-    merged = merged.fillna(0)
+    # 處理商品成本
+    df_cost = None
+    if has_cost:
+        if not exchange_rates_json:
+            raise HTTPException(status_code=400, detail="請提供匯率資料")
+        try:
+            exchange_rates = json.loads(exchange_rates_json)
+        except Exception:
+            raise HTTPException(status_code=400, detail="匯率格式錯誤")
+        df_cost = await process_cal_cost(cost_file, exchange_rates)
 
-    # 轉 int、去除空白 PART_NO、排序
-    for col in merged.columns:
-        if col != 'PART_NO':
-            merged[col] = merged[col].astype(int)
-    merged = merged.dropna(subset=['PART_NO'])
-    merged = merged[merged['PART_NO'].astype(str).str.strip() != '']
-    merged = merged.sort_values(by='PART_NO').reset_index(drop=True)
+    # 合併所有資料
+    merged = None
 
-    # 合併在途庫存（選填）
-    if inventory_file and inventory_file.filename:
+    if has_months:
+        merged = reduce(lambda l, r: l.merge(r, on='PART_NO', how='outer'), month_dfs)
+        merged = merged.fillna(0)
+        for col in merged.columns:
+            if col != 'PART_NO':
+                merged[col] = merged[col].astype(int)
+        merged = merged.dropna(subset=['PART_NO'])
+        merged = merged[merged['PART_NO'].astype(str).str.strip() != '']
+        merged = merged.sort_values(by='PART_NO').reset_index(drop=True)
+
+    # 合併在途庫存
+    if has_inventory:
         df_inv = await process_cal_inventory(inventory_file)
-        merged = merged.merge(df_inv, on='PART_NO', how='left')
-        merged['在途庫存'] = merged['在途庫存'].fillna(0).astype(int)
+        if merged is not None:
+            merged = merged.merge(df_inv, on='PART_NO', how='left')
+            merged['在途庫存'] = merged['在途庫存'].fillna(0).astype(int)
+        else:
+            merged = df_inv.sort_values(by='PART_NO').reset_index(drop=True)
 
-    # 輸出檔名：X月到X月（單月則只顯示該月）
+    # 合併商品成本
+    if df_cost is not None:
+        if merged is not None:
+            merged = merged.merge(df_cost[['PART_NO', 'TWD成本']], on='PART_NO', how='left')
+        else:
+            merged = df_cost.sort_values(by='PART_NO').reset_index(drop=True)
+
+    # 輸出檔名
     present_months_sorted = [m for m in MONTH_ORDER if m in present_months]
-    if len(present_months_sorted) == 1:
+    if len(present_months_sorted) == 0:
+        out_filename = '華航庫存表.xlsx'
+    elif len(present_months_sorted) == 1:
         month_range = present_months_sorted[0]
+        out_filename = f'華航庫存計算表_{month_range}.xlsx'
     else:
         month_range = f'{present_months_sorted[0]}到{present_months_sorted[-1]}'
-    out_filename = f'華航庫存計算表_{month_range}.xlsx'
+        out_filename = f'華航庫存計算表_{month_range}.xlsx'
 
     output_stream = io.BytesIO()
     with pd.ExcelWriter(output_stream, engine='openpyxl') as writer:
