@@ -13,7 +13,8 @@ from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 
 from constants import MONTH_NAMES, MONTH_NUM, MONTH_ORDER
 from responses import make_xlsx_response
-from tigerair_processors import (
+
+from .processors import (
     process_cost,
     process_import,
     process_inventory,
@@ -22,7 +23,7 @@ from tigerair_processors import (
     process_stock,
     scan_cost_currencies_from_file,
 )
-from tigerair_replenishment import run_replenishment_calculation
+from .replenishment import run_replenishment_calculation
 
 
 router = APIRouter()

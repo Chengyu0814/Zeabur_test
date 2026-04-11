@@ -4,6 +4,7 @@ __pycache__/
 .env
 .venv
 venv/
+.DS_Store
 
 # 資料檔（Example Data 資料夾除外）
 *.xlsx

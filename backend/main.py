@@ -2,15 +2,15 @@
 
 實際業務邏輯都拆到了：
   - 共用：constants.py / responses.py
-  - 虎航：tigerair_processors.py / tigerair_replenishment.py / tigerair_router.py
-  - 華航：cal_processors.py / cal_calculations.py / cal_formatting.py / cal_router.py
+  - 虎航：tigerair/ （processors / replenishment / router）
+  - 華航：cal/ （processors / calculations / formatting / router）
 """
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from cal_router import router as cal_router
-from tigerair_router import router as tigerair_router
+from cal.router import router as cal_router
+from tigerair.router import router as tigerair_router
 
 
 app = FastAPI(title="Excel Processor API", version="1.0.0")
