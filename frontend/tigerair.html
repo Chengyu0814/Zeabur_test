@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>TTB 虎航庫存計算系統</title>
     <meta name="description" content="飛買家銷售明細 Excel 自動計算合併工具" />
-    <link rel="stylesheet" href="style.css" />
+    <link rel="stylesheet" href="style.css?v=2" />
     <script>window.CALCULATOR_API_URL = "https://zeabur-test2.zeabur.app";</script>
   </head>
   <body>
@@ -147,7 +147,7 @@
             <tbody>
               <tr><td><code>SKU No.</code></td><td>所有來源 outer join 的 key（含 B 的 SKU 會被排除）</td></tr>
               <tr><td><code>品名</code></td><td>多來源優先序，必要時以採購大表 <code>DESCRIPTION</code> 補</td></tr>
-              <tr><td><code>規劃性下架</code></td><td>採購大表，有值則補貨量強制為 0</td></tr>
+              <tr><td><code>規劃性下架</code></td><td>採購大表</td></tr>
               <tr><td><code>成箱規定</code></td><td>採購大表，預設 5</td></tr>
               <tr><td><code>TWD成本</code></td><td>品號價格資料（外幣 × 匯率）</td></tr>
               <tr><td><code>lead time</code></td><td>採購大表</td></tr>
@@ -170,7 +170,7 @@
           <div class="spec-group-title">庫存彙整</div>
           <table class="spec-table">
             <tbody>
-              <tr><td><code>平均月銷量</code></td><td>各月銷售量平均（四捨五入）</td></tr>
+              <tr><td><code>平均月銷量</code></td><td>各月銷售量平均</td></tr>
               <tr><td><code>期末存量</code></td><td>期末存量檔</td></tr>
               <tr><td><code>本月銷貨({最新月})</code></td><td>最新月份銷售量</td></tr>
               <tr><td><code>本月進貨</code></td><td>進貨明細（庫別 = 華膳-IT，品號尾 A）</td></tr>
@@ -195,10 +195,6 @@
           </table>
         </div>
 
-        <p class="output-spec-note">
-          若未上傳採購大表，則僅輸出基本欄位 + 每月銷售 + 庫存彙整，檔名為
-          <code>TTW sales summary {起月}-{迄月}.xlsx</code> 或 <code>TTW 庫存表.xlsx</code>。
-        </p>
       </div>
     </details>
 

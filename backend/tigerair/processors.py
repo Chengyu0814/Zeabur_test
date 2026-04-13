@@ -9,7 +9,7 @@ import pandas as pd
 from fastapi import HTTPException, UploadFile
 
 
-async def process_inventory(file: UploadFile) -> pd.DataFrame:
+async def process_inventory(file: UploadFile) -> pd.DataFrame: #採購未交量
     """處理 採購未交量 檔案，回傳 SKU No. + 品名 + 在途庫存 的 DataFrame"""
     contents = await file.read()
     try:
@@ -39,7 +39,7 @@ async def process_inventory(file: UploadFile) -> pd.DataFrame:
     return df_res[["SKU No.", "品名", "在途庫存"]]
 
 
-async def process_cost(file: UploadFile, exchange_rates: dict) -> pd.DataFrame:
+async def process_cost(file: UploadFile, exchange_rates: dict) -> pd.DataFrame: # 品號價格資料 (成本)
     """處理 品號價格資料 檔案，回傳 SKU No. + 品名 + TWD成本 的 DataFrame"""
     contents = await file.read()
     try:
@@ -65,7 +65,7 @@ async def process_cost(file: UploadFile, exchange_rates: dict) -> pd.DataFrame:
     return df[["SKU No.", "品名", "TWD成本"]]
 
 
-async def process_import(file: UploadFile) -> pd.DataFrame:
+async def process_import(file: UploadFile) -> pd.DataFrame: # 進貨明細 (本月進貨)
     """處理 進貨明細 檔案，回傳 SKU No. + 品名 + 本月進貨 的 DataFrame"""
     contents = await file.read()
     try:
@@ -88,7 +88,7 @@ async def process_import(file: UploadFile) -> pd.DataFrame:
     return df_res[["SKU No.", "品名", "本月進貨"]]
 
 
-async def process_stock(file: UploadFile) -> pd.DataFrame:
+async def process_stock(file: UploadFile) -> pd.DataFrame: # 期末存量
     """處理 期末存量 檔案，回傳 SKU No. + 品名 + 期末存量 的 DataFrame"""
     contents = await file.read()
     try:
@@ -106,7 +106,7 @@ async def process_stock(file: UploadFile) -> pd.DataFrame:
     return df[["SKU No.", "品名", "期末存量"]]
 
 
-async def process_onboard(normal_file: UploadFile, fly_file: UploadFile) -> pd.DataFrame:
+async def process_onboard(normal_file: UploadFile, fly_file: UploadFile) -> pd.DataFrame: # 機上量
     """處理 機上量 檔案（一般航線 × 41，串飛航線 × 10），回傳 SKU No. + 品名 + 機上量 的 DataFrame"""
 
     async def read_onboard_file(file: UploadFile, multiplier: int):
