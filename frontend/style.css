@@ -610,3 +610,132 @@ body::after {
   text-align: center;
 }
 
+/* ===================================
+   Output Spec (輸出欄位說明)
+   =================================== */
+
+.output-spec {
+  width: 500px;
+  margin-top: 16px;
+  background: rgba(18, 18, 26, 0.8);
+  border: 1px solid var(--glass-border);
+  border-radius: 20px;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  overflow: hidden;
+}
+
+.output-spec > summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 16px 22px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  user-select: none;
+  transition: background 0.2s ease;
+}
+
+.output-spec > summary::-webkit-details-marker { display: none; }
+
+.output-spec > summary:hover {
+  background: rgba(124, 58, 237, 0.08);
+}
+
+.output-spec-title {
+  color: var(--text-primary);
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.output-spec-title::before {
+  content: '▸';
+  display: inline-block;
+  color: var(--accent-secondary);
+  margin-right: 8px;
+  transition: transform 0.2s ease;
+}
+
+.output-spec[open] .output-spec-title::before {
+  transform: rotate(90deg);
+}
+
+.output-spec-hint {
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+}
+
+.output-spec[open] .output-spec-hint { display: none; }
+
+.output-spec-body {
+  padding: 4px 22px 22px;
+  border-top: 1px solid var(--glass-border);
+}
+
+.output-spec-intro,
+.output-spec-note {
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  line-height: 1.6;
+  margin: 14px 0 10px;
+}
+
+.output-spec-intro strong { color: var(--text-primary); }
+
+.spec-group {
+  margin-top: 14px;
+}
+
+.spec-group-title {
+  color: var(--accent-secondary);
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  margin-bottom: 6px;
+}
+
+.spec-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.75rem;
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.spec-table th,
+.spec-table td {
+  padding: 8px 10px;
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  color: var(--text-primary);
+  line-height: 1.5;
+}
+
+.spec-table tbody tr:last-child th,
+.spec-table tbody tr:last-child td { border-bottom: none; }
+
+.spec-table th {
+  color: var(--text-secondary);
+  font-weight: 500;
+  background: rgba(124, 58, 237, 0.08);
+  font-size: 0.72rem;
+}
+
+.spec-table td:first-child { width: 38%; }
+
+.spec-table code,
+.output-spec-intro code,
+.output-spec-note code {
+  background: rgba(124, 58, 237, 0.15);
+  border: 1px solid rgba(124, 58, 237, 0.25);
+  color: #d8b4fe;
+  padding: 1px 6px;
+  border-radius: 5px;
+  font-family: 'JetBrains Mono', 'Menlo', monospace;
+  font-size: 0.7rem;
+  white-space: nowrap;
+}
+

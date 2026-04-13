@@ -127,7 +127,80 @@
       </button>
     </div>
 
+    <!-- 輸出欄位說明 -->
+    <details class="output-spec">
+      <summary>
+        <span class="output-spec-title">輸出報表欄位說明</span>
+        <span class="output-spec-hint">點擊展開</span>
+      </summary>
 
+      <div class="output-spec-body">
+        <p class="output-spec-intro">
+          上傳全部檔案（含<strong>採購大表</strong>）後，系統會輸出
+          <code>虎航庫存計算表(最新月份).xlsx</code>，欄位如下：
+        </p>
+
+        <div class="spec-group">
+          <div class="spec-group-title">基本欄位</div>
+          <table class="spec-table">
+            <thead><tr><th>欄位</th><th>來源 / 計算</th></tr></thead>
+            <tbody>
+              <tr><td><code>SKU No.</code></td><td>所有來源 outer join 的 key（含 B 的 SKU 會被排除）</td></tr>
+              <tr><td><code>品名</code></td><td>多來源優先序，必要時以採購大表 <code>DESCRIPTION</code> 補</td></tr>
+              <tr><td><code>規劃性下架</code></td><td>採購大表，有值則補貨量強制為 0</td></tr>
+              <tr><td><code>成箱規定</code></td><td>採購大表，預設 5</td></tr>
+              <tr><td><code>TWD成本</code></td><td>品號價格資料（外幣 × 匯率）</td></tr>
+              <tr><td><code>lead time</code></td><td>採購大表</td></tr>
+              <tr><td><code>機上量</code></td><td>一般航線 × 41 + 串飛航線 × 10</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="spec-group">
+          <div class="spec-group-title">每月銷售（每個上傳月份各兩欄）</div>
+          <table class="spec-table">
+            <tbody>
+              <tr><td><code>{月份}銷售量</code></td><td>當月銷售明細加總</td></tr>
+              <tr><td><code>{月份}銷售額</code></td><td>當月銷售明細加總</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="spec-group">
+          <div class="spec-group-title">庫存彙整</div>
+          <table class="spec-table">
+            <tbody>
+              <tr><td><code>平均月銷量</code></td><td>各月銷售量平均（四捨五入）</td></tr>
+              <tr><td><code>期末存量</code></td><td>期末存量檔</td></tr>
+              <tr><td><code>本月銷貨({最新月})</code></td><td>最新月份銷售量</td></tr>
+              <tr><td><code>本月進貨</code></td><td>進貨明細（庫別 = 華膳-IT，品號尾 A）</td></tr>
+              <tr><td><code>在途庫存</code></td><td>採購未交量（交貨庫 = 華膳-IT，品號尾 A）</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="spec-group">
+          <div class="spec-group-title">補貨計算（兩種期程）</div>
+          <table class="spec-table">
+            <thead><tr><th>欄位</th><th>公式</th></tr></thead>
+            <tbody>
+              <tr><td><code>需求量(1.5)</code></td><td>機上量 + MAX(平均月銷量, 本月銷貨) × 1.5</td></tr>
+              <tr><td><code>補貨量(以1.5個月)</code></td><td>MAX(需求量(1.5) − (期末存量 − 本月銷貨) − 本月進貨 − 在途庫存, 0)，再依成箱規定無條件進位</td></tr>
+              <tr><td><code>採購金額(1.5)</code></td><td>補貨量(以1.5個月) × TWD成本</td></tr>
+              <tr><td><code>需求量_lead_time</code></td><td>機上量 + MAX(平均月銷量, 本月銷貨) × lead time</td></tr>
+              <tr><td><code>補貨量(以lead time)</code></td><td>同上邏輯，改用 <code>需求量_lead_time</code></td></tr>
+              <tr><td><code>採購金額(lead time)</code></td><td>補貨量(以lead time) × TWD成本</td></tr>
+              <tr><td><code>追加數量</code></td><td>補貨量(以lead time) − 補貨量(以1.5個月)</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p class="output-spec-note">
+          若未上傳採購大表，則僅輸出基本欄位 + 每月銷售 + 庫存彙整，檔名為
+          <code>TTW sales summary {起月}-{迄月}.xlsx</code> 或 <code>TTW 庫存表.xlsx</code>。
+        </p>
+      </div>
+    </details>
 
     <p style="text-align:center;color:var(--text-secondary);font-size:0.85rem;margin-top:1rem;">Create by Peter (Update: 2026/04/06)</p>
     <script src="app.js"></script>
